@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { FlaskConical, Info, Loader2, SlidersHorizontal } from "lucide-react";
 import { fetchDistrictList, runSimulation } from "../lib/api";
 import ScenarioChart from "./ScenarioChart";
+import SectionCard from "./Card";
 
 const LEVERS = [
   { key: "mobile_money", label: "Mobile money adoption", hint: "FinScope 2024 national: 77%", max: 15 },
@@ -62,40 +63,31 @@ export default function ScenarioLab() {
   }, [run]);
 
   return (
-    <section
-      aria-label="Predictive scenario lab"
-      className="rounded-2xl border border-slate-200 bg-gradient-to-b from-white to-sky-50/70 p-5 shadow-sm sm:p-6"
-    >
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-start gap-3">
-          <span className="rounded-lg bg-emerald-50 p-2.5 text-emerald-600">
-            <FlaskConical className="h-5 w-5" aria-hidden="true" />
-          </span>
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">Policy Scenario Lab</h2>
-            <p className="mt-0.5 text-xs text-gray-500">
-              Ridge-blended elasticity model trained on the embedded FinScope 2024 / EICV7 district panel
-            </p>
-          </div>
-        </div>
+    <SectionCard
+      ariaLabel="Predictive scenario lab"
+      icon={FlaskConical}
+      tone="emerald"
+      title="Policy Scenario Lab"
+      subtitle="Ridge-blended elasticity model trained on the embedded FinScope 2024 / EICV7 district panel"
+      actions={
         <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
           <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" /> Horizon
           <select
             value={horizon}
             onChange={(e) => setHorizon(Number(e.target.value))}
-            className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs"
+            className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs shadow-sm transition focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/15"
           >
             {[1, 2, 3, 4, 5].map((h) => (
               <option key={h} value={h}>{h} year{h > 1 ? "s" : ""}</option>
             ))}
           </select>
         </label>
-      </header>
-
-      <div className="mt-4 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(260px,340px)_1fr]">
+      }
+    >
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(260px,340px)_1fr]">
         {/* ---------------- levers ---------------- */}
-        <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
-          <label className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+        <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+          <label className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-slate-600">
             <input
               type="radio"
               name="sim-scope"
@@ -105,7 +97,7 @@ export default function ScenarioLab() {
             />
             National · weighted mean
           </label>
-          <label className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+          <label className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-slate-600">
             <input
               type="radio"
               name="sim-scope"
@@ -118,7 +110,7 @@ export default function ScenarioLab() {
               value={district}
               onChange={(e) => setDistrict(e.target.value)}
               disabled={scope !== "district"}
-              className="ml-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-[11px] font-medium normal-case text-slate-700 disabled:bg-slate-100"
+              className="ml-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-[11px] font-medium normal-case text-slate-700 shadow-sm transition focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/15 disabled:bg-slate-100"
             >
               <option value="">Choose…</option>
               {(labDistricts || []).map((d) => (
@@ -155,7 +147,7 @@ export default function ScenarioLab() {
                   }}
                   className="mt-1 w-full accent-emerald-600"
                 />
-                <p className="mt-0.5 text-[10px] text-slate-400">{lever.hint}</p>
+                <p className="mt-0.5 text-[10px] text-slate-500">{lever.hint}</p>
               </div>
             );
           })}
@@ -169,9 +161,9 @@ export default function ScenarioLab() {
         </div>
 
         {/* ---------------- results ---------------- */}
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
           {busy && !result && (
-            <div className="flex items-center gap-2 py-10 text-xs text-slate-400" role="status">
+            <div className="flex items-center gap-2 py-10 text-xs text-slate-500" role="status">
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Running simulation…
             </div>
           )}
@@ -199,7 +191,7 @@ export default function ScenarioLab() {
                   policy-lever drivers), FinScope/EICV7-aligned priors, ramp applied as g/H of the horizon
                   and 0–100 plausibility clamped. Uncertainty bands: ±1.96·RMSE/√30 from the regression fit.
                 </p>
-                <pre className="mt-2 overflow-x-auto font-mono text-[10px] leading-4 text-slate-500">
+                <pre className="mt-2 overflow-x-auto font-mono text-[10px] leading-4 text-slate-600">
                   {JSON.stringify(result.model, null, 2)}
                 </pre>
               </details>
@@ -207,6 +199,6 @@ export default function ScenarioLab() {
           )}
         </div>
       </div>
-    </section>
+    </SectionCard>
   );
 }

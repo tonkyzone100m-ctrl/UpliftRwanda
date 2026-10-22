@@ -15,6 +15,26 @@ from sqlalchemy import Float, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
+def as_int(value):
+    """Coerce driver/database values to int, tolerating Decimal/None/strings."""
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def as_float(value):
+    """Coerce driver/database values to float, tolerating Decimal/None/strings."""
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 class Base(DeclarativeBase):
     pass
 
@@ -86,6 +106,26 @@ class SurveyMetric(Base):
 
     def __repr__(self) -> str:  # pragma: no cover - debug aid
         return f"<SurveyMetric region={self.region_id} indicator={self.indicator_id} year={self.survey_year} value={self.value}>"
+
+
+class NationalTarget(Base):
+    """Ministerial baseline target / rule-threshold override (JWT-managed).
+
+    Keyed rows in this table override the engine's shipped official policy
+    defaults (policy.py). Absence of a row means "use official default", so the
+    seeder dropping the table during a reseed is always safe.
+    """
+
+    __tablename__ = "national_targets"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    target_key: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    value: Mapped[float] = mapped_column(Float, nullable=False)
+    updated_by: Mapped[str] = mapped_column(String(64), nullable=False, default="official-default")
+    updated_at: Mapped[str] = mapped_column(String(32), nullable=False, default="")
+
+    def __repr__(self) -> str:  # pragma: no cover - debug aid
+        return f"<NationalTarget {self.target_key}={self.value} by {self.updated_by}>"
 
 
 class DistrictCfsvaMetrics(Base):

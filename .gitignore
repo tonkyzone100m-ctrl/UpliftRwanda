@@ -1,0 +1,48 @@
+# ---- Secrets / environment ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# ---- Scratch / backup artifacts (never commit; use db/database_snapshot.sql) ----
+*.bak
+*.bak_*
+*.dump
+*.sqlite
+*.db-journal
+!db/database_snapshot.sql
+
+# ---- Node / Vite ----
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# ---- Logs ----
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# ---- Editor / OS ----
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.suo
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db

@@ -10,10 +10,17 @@ import MetricsTable from "./components/MetricsTable";
 import DistrictMap from "./components/DistrictMap";
 import ScenarioLab from "./components/ScenarioLab";
 import CFSVAPanel from "./components/CFSVAPanel";
+import MinisterialPortal from "./components/MinisterialPortal";
 import { ErrorBanner, ErrorState, Footer, LoadingState } from "./components/Status";
 import { fetchCfsvaMetrics, fetchMetrics } from "./lib/api";
 import { toDisplayRows, filterDisplayRows } from "./lib/filters";
 import { buildRegions, computeNationalStats } from "./lib/stats";
+import { getSession } from "./lib/auth";
+
+function syncPortalSession() {
+  const session = getSession();
+  return session?.expiresAt ? { username: session.username, expiresAt: session.expiresAt } : null;
+}
 
 /** Synthetic region of national means so insights work in the "All districts" view. */
 function buildNationalRegion(stats) {
@@ -38,6 +45,13 @@ function buildNationalRegion(stats) {
   };
 }
 
+const TABS = [
+  { id: "dashboard", label: "National Intelligence Dashboard" },
+  { id: "lab", label: "Policy Scenario Lab" },
+  { id: "explorer", label: "District Explorer" },
+];
+const TAB_BY_HASH = { "#dashboard": "dashboard", "#lab": "lab", "#explorer": "explorer" };
+
 export default function App() {
   const [status, setStatus] = useState("loading");
   const [rows, setRows] = useState([]);
@@ -46,6 +60,20 @@ export default function App() {
   const [refreshError, setRefreshError] = useState(null);
   const [updatedAt, setUpdatedAt] = useState(null);
   const [filters, setFilters] = useState({ query: "", categoryId: "all", district: "" });
+  const [portalOpen, setPortalOpen] = useState(false);
+  const [portalSession, setPortalSession] = useState(syncPortalSession);
+  const [targetsVersion, setTargetsVersion] = useState(0); // re-key PolicyInsights after ministerial target edits
+  const [activeTab, setActiveTab] = useState(() => TAB_BY_HASH[window.location.hash] ?? "dashboard");
+
+  // Hash-synced SPA tabs (no reloads; deep links like #lab / #explorer work).
+  const changeTab = (id) => {
+    setActiveTab(id);
+    try {
+      history.replaceState(null, "", id === "dashboard" ? location.pathname + location.search : `#${id}`);
+    } catch {
+      /* reserved for non-HTTP embeddings */
+    }
+  };
 
   const rowTotalRef = useRef(0);
 
@@ -102,13 +130,30 @@ export default function App() {
 
   const hasFilters = Boolean(filters.query || filters.categoryId !== "all" || filters.district);
 
+  const portalProps = {
+    onOpenPortal: () => setPortalOpen(true),
+    portalSession,
+  };
+  const portalModal = (
+    <MinisterialPortal
+      open={portalOpen}
+      onClose={() => {
+        setPortalOpen(false);
+        setPortalSession(syncPortalSession());
+      }}
+      onTargetsChanged={() => setTargetsVersion((v) => v + 1)}
+      onDataChanged={() => fetchData()}
+    />
+  );
+
   if (status === "loading") {
     return (
       <div className="flex min-h-screen flex-col bg-slate-100">
-        <Header regionCount={0} stats={null} />
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-10 sm:px-6 lg:px-8">
+        <Header regionCount={0} stats={null} dataPoints={0} {...portalProps} />
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
           <LoadingState />
         </main>
+        {portalModal}
       </div>
     );
   }
@@ -117,19 +162,25 @@ export default function App() {
     const noData = status === "ready";
     return (
       <div className="flex min-h-screen flex-col bg-slate-100">
-        <Header regionCount={0} stats={null} />
+        <Header regionCount={0} stats={null} dataPoints={0} {...portalProps} />
         <main className="mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-10 sm:px-6 lg:px-8">
           {noData ? (
             <div
               role="status"
-              className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 bg-white p-16 text-center shadow-sm"
+              className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white p-16 text-center shadow-sm"
             >
-              <FileSearch2 className="h-10 w-10 text-gray-300" aria-hidden="true" />
-              <h2 className="text-base font-bold text-gray-800">No usable district data was returned</h2>
-              <p className="max-w-md text-sm text-gray-500">
-                The API responded, but the dataset contained no district rows. Seed{" "}
-                <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs">survey_metrics</code> for
-                regions such as Nyarugenge, Karongi and Huye, then refresh.
+              <FileSearch2 className="h-10 w-10 text-slate-300" aria-hidden="true" />
+              <h2 className="text-base font-bold text-slate-800">No usable district data was returned</h2>
+              <p className="max-w-md text-sm text-slate-500">
+                The API responded, but the dataset contained no district rows. Ministers can regenerate it from the{" "}
+                <button
+                  type="button"
+                  onClick={() => setPortalOpen(true)}
+                  className="font-semibold text-emerald-700 underline decoration-emerald-600/40 underline-offset-2 hover:text-emerald-800"
+                >
+                  Ministerial Portal
+                </button>
+                , then refresh.
               </p>
               <button
                 type="button"
@@ -144,59 +195,88 @@ export default function App() {
           )}
         </main>
         <Footer stats={null} />
+        {portalModal}
       </div>
     );
   }
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-100">
-      <Header regionCount={regions.length} stats={stats} />
+      <Header
+        regionCount={regions.length}
+        stats={stats}
+        dataPoints={allRows.length}
+        tabs={TABS}
+        activeTab={activeTab}
+        onTabChange={changeTab}
+        {...portalProps}
+      />
 
-      <main className="mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
         {refreshError && <ErrorBanner error={refreshError} onDismiss={() => setRefreshError(null)} />}
 
-        <Filters
-          regions={regions}
-          displayRows={displayRows}
-          filters={filters}
-          onChange={setFilters}
-          matchCount={filteredRows.length}
-          totalCount={displayRows.length}
-          updatedAt={updatedAt}
-          onRefresh={() => fetchData()}
-        />
+        {/* Tab 1 — National Intelligence Dashboard (kept mounted: instant tab switches,
+            sliders/map state survive, Leaflet only ever initialises once). */}
+        <div className={activeTab === "dashboard" ? "space-y-4" : "hidden space-y-4"}>
+          <SummaryCards stats={stats} />
 
-        <DistrictMap
-          regions={regions}
-          selectedDistrict={filters.district}
-          onSelectDistrict={(name) =>
-            setFilters((f) => ({ ...f, district: f.district === name ? "" : name }))
-          }
-        />
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] xl:items-start">
+            <div className="isolate min-w-0">
+              <DistrictMap
+                regions={regions}
+                selectedDistrict={filters.district}
+                onSelectDistrict={(name) =>
+                  setFilters((f) => ({ ...f, district: f.district === name ? "" : name }))
+                }
+              />
+            </div>
 
-        <SummaryCards stats={stats} />
-        <CFSVAPanel rows={cfsvaRows} stats={stats} selectedDistrict={filters.district} />
-        <PolicyInsights
-          district={filters.district}
-          fallbackRegion={insightRegion}
-          fallbackStats={stats}
-        />
-        <ScenarioLab />
-        {selectedRegion && <DistrictFocus region={selectedRegion} stats={stats} />}
+            <div className="min-w-0 space-y-4">
+              <CFSVAPanel rows={cfsvaRows} stats={stats} selectedDistrict={filters.district} />
+            </div>
+          </div>
 
-        <MetricsTable
-          rows={filteredRows}
-          stats={stats}
-          hasFilters={hasFilters}
-          emptyHint={
-            displayRows.length > 0 && filteredRows.length === 0
-              ? "No rows match your current filters — try a broader search term or reset the filters."
-              : null
-          }
-        />
+          <PolicyInsights
+            key={`policy-insights-${targetsVersion}`}
+            district={filters.district}
+            fallbackRegion={insightRegion}
+            fallbackStats={stats}
+          />
+        </div>
+
+        {/* Tab 2 — Policy Scenario Lab */}
+        <div className={activeTab === "lab" ? "" : "hidden"}>
+          <ScenarioLab />
+        </div>
+
+        {/* Tab 3 — District Explorer */}
+        <div className={activeTab === "explorer" ? "space-y-4" : "hidden space-y-4"}>
+          <Filters
+            regions={regions}
+            displayRows={displayRows}
+            filters={filters}
+            onChange={setFilters}
+            matchCount={filteredRows.length}
+            totalCount={displayRows.length}
+            updatedAt={updatedAt}
+            onRefresh={() => fetchData()}
+          />
+          {selectedRegion && <DistrictFocus region={selectedRegion} stats={stats} />}
+          <MetricsTable
+            rows={filteredRows}
+            stats={stats}
+            hasFilters={hasFilters}
+            emptyHint={
+              displayRows.length > 0 && filteredRows.length === 0
+                ? "No rows match your current filters — try a broader search term or reset the filters."
+                : null
+            }
+          />
+        </div>
       </main>
 
       <Footer stats={stats} />
+      {portalModal}
     </div>
   );
 }

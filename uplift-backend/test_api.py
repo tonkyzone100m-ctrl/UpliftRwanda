@@ -10,6 +10,10 @@ import sys
 
 TEST_DB = "/tmp/opencode/uplift-api-test.db"
 os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB}"
+os.environ["UPLIFT_ADMIN_USERNAME"] = "nisr_test_admin"
+os.environ["UPLIFT_ADMIN_PASSWORD"] = "test-minister-pass"
+os.environ["UPLIFT_JWT_SECRET"] = "test-signing-secret-for-pytest"
+os.environ["UPLIFT_TOKEN_TTL_MINUTES"] = "60"
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -124,14 +128,160 @@ def main_flow():
 
     print("\n--- seed idempotency (second run updates, never duplicates) ---")
     main.engine, main.SessionLocal = good_engine, good_sessionmaker
+    # Evict pooled connections bound to the pre-swap sqlite inode: the suite
+    # deleted and recreated the file, so pooled handles serve orphaned data
+    # (reads "work", writes raise readonly until disposed).
+    good_engine.dispose()
     r0 = client.get("/api/metrics")
     seed_data.seed(engine, drop_existing=False)
     r1 = client.get("/api/metrics")
     check("re-seed keeps 600 rows", r0.json()["count"] == r1.json()["count"] == 600)
 
 
+def auth_flow():
+    import auth  # noqa: E402 (configured via env exported before main import)
+
+    client = TestClient(main.app)
+    print("\n--- public core (no token required) ---")
+    r = client.get("/api/metrics")
+    check("GET /api/metrics stays public", r.status_code == 200)
+    r = client.get("/api/insights/national")
+    check("GET /api/insights/national stays public", r.status_code == 200)
+    r = client.post("/api/v1/simulate", json={"driver_deltas": {}, "horizon_years": 1})
+    check("POST simulation stays public (pure compute, no writes)", r.status_code == 200, r.text[:120])
+
+    print("\n--- write route protection ---")
+    r = client.post("/api/admin/seed")
+    body = r.json()
+    check("POST /api/admin/seed without token -> 401", r.status_code == 401, r.text[:120])
+    check("401 payload is clean JSON with code", body["detail"]["code"] == "not_authenticated")
+    auth.reset_rate_limiter()
+
+    print("\n--- login flow ---")
+    r = client.post("/api/auth/login", json={"username": "nisr_test_admin", "password": "wrong-password"})
+    body = r.json()
+    check("wrong password -> 401 invalid_credentials",
+          r.status_code == 401 and body["detail"]["code"] == "invalid_credentials")
+    r = client.post("/api/auth/login", json={"username": "nisr_test_admin", "password": "test-minister-pass"})
+    body = r.json()
+    check("correct credentials -> 200", r.status_code == 200, r.text[:120])
+    check("token contract", body.get("token_type") == "bearer" and len(body.get("access_token", "")) > 40
+          and isinstance(body.get("expires_in"), int) and body["expires_in"] > 0)
+    token = body["access_token"]
+    auth_header = {"Authorization": f"Bearer {token}"}
+
+    r = client.get("/api/auth/me", headers=auth_header)
+    body = r.json()
+    check("GET /api/auth/me -> session echoes admin", r.status_code == 200
+          and body["username"] == "nisr_test_admin" and body["role"] == "admin", r.text[:140])
+
+    r = client.get("/api/auth/me")
+    check("GET /api/auth/me without token -> 401", r.status_code == 401)
+    r = client.get("/api/auth/me", headers={"Authorization": "Bearer tampered.token.here"})
+    check("GET /api/auth/me with tampered token -> 401", r.status_code == 401
+          and r.json()["detail"]["code"] in ("invalid_token", "token_expired"))
+
+    print("\n--- protected seed with real token ---")
+    r = client.post("/api/admin/seed", headers=auth_header, json=None)
+    body = r.json()
+    check("POST /api/admin/seed with token -> success", r.status_code == 200 and body["status"] == "success", r.text[:160])
+    check("seed reports all layers", body["seeded"]["metric_rows"] == 600 and body["cfsva"]["seeded"])
+    r = client.get("/api/metrics")
+    check("re-seeded dashboard intact (600 rows)", r.json().get("count") == 600)
+
+    print("\n--- brute-force rate limiting ---")
+    auth.reset_rate_limiter()
+    for _ in range(5):
+        client.post("/api/auth/login", json={"username": "nisr_test_admin", "password": "nope"})
+    r = client.post("/api/auth/login", json={"username": "nisr_test_admin", "password": "nope"})
+    body = r.json()
+    check("6th failed attempt in window -> 429", r.status_code == 429 and body["detail"]["code"] == "too_many_attempts")
+    r = client.get("/api/metrics")
+    check("rate limit never touches public reads", r.status_code == 200)
+    auth.reset_rate_limiter()
+
+
+def admin_mutations():
+    client = TestClient(main.app)
+
+    import auth  # noqa: E402
+
+    login = client.post(
+        "/api/auth/login",
+        json={"username": "nisr_test_admin", "password": "test-minister-pass"},
+    )
+    auth_header = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    print("\n--- national baseline targets ---")
+    r = client.get("/api/targets")
+    body = r.json()
+    check("GET /api/targets -> public, defaults active", r.status_code == 200
+          and body["targets"]["poverty_limit"] == 30.0
+          and all(not e["is_overridden"] for e in body["entries"]), r.text[:140])
+
+    r = client.post("/api/admin/targets", json={"targets": {"poverty_limit": 10.0}})
+    check("POST /api/admin/targets without token -> 401", r.status_code == 401)
+
+    r = client.post("/api/admin/targets", json={"targets": {"nonsense_metric": 5}}, headers=auth_header)
+    body = r.json()
+    check("unknown target key -> 422 with explicit errors", r.status_code == 422
+          and body["code"] == "invalid_targets" and body["errors"], r.text[:160])
+
+    r = client.post("/api/admin/targets", json={"targets": {"poverty_limit": 10.0}, "reason": "stress test"}, headers=auth_header)
+    body = r.json()
+    check("target override -> success", r.status_code == 200 and body["applied"] == {"poverty_limit": 10.0}, r.text[:160])
+    r = client.get("/api/districts/Karongi/insights")
+    body = r.json()
+    check("policy engine consumes ministerial cutoff (10%)",
+          body["thresholds"]["poverty_limit"] == 10.0
+          and body["using_baseline_targets"] is False
+          and body["active_target_overrides"] == {"poverty_limit": 10.0}, body.get("thresholds"))
+    check("poverty still flagged under new cutoff", any(i["id"] == "poverty-critical" for i in body["insights"]))
+
+    r = client.post("/api/admin/targets", json={"targets": {"climate_attention": 95, "climate_critical": 65}}, headers=auth_header)
+    check("incoherent band -> 422", r.status_code == 422 and "must stay below" in r.text, r.text[:160])
+
+    r = client.post("/api/admin/targets", json={"reset_to_official": True}, headers=auth_header)
+    body = r.json()
+    check("reset to official -> defaults live again", r.status_code == 200
+          and body["action"] == "reset_to_official" and body["targets"]["poverty_limit"] == 30.0)
+    r = client.get("/api/districts/Karongi/insights")
+    check("insights return to baseline thresholds", r.json()["thresholds"]["poverty_limit"] == 30.0)
+
+    print("\n--- microdata upload (ministerial write) ---")
+    r = client.post("/api/admin/microdata", json={"rows": [
+        {"district": "Karongi", "indicator_code": "poverty_headcount", "survey_year": 2024, "value": 22.0},
+    ]})
+    check("upload without token -> 401", r.status_code == 401)
+
+    before = client.get("/api/metrics").json()["count"]
+    r = client.post("/api/admin/microdata", headers=auth_header, json={"rows": [
+        {"district": "Karongi", "indicator_code": "poverty_headcount", "survey_year": 2024, "value": 23.5},
+        {"district": "Karongi", "indicator_code": "poverty_headcount", "survey_year": 2025, "value": 21.0},
+        {"district": "Atlantis", "indicator_code": "poverty_headcount", "survey_year": 2024, "value": 10.0},
+        {"district": "Karongi", "indicator_code": "financial_inclusion_rate", "survey_year": 2024, "value": 130.0},
+        {"district": "Karongi", "indicator_code": "not_a_real_code", "survey_year": 2024, "value": 1.0},
+    ]})
+    body = r.json()
+    check("upload contract: 1 inserted / 1 updated / 3 rejected",
+          r.status_code == 200 and body["status"] == "partial"
+          and body["inserted"] == 1 and body["updated"] == 1 and body["rejected"] == 3, r.text[:240])
+    after = client.get("/api/metrics").json()["count"]
+    check("dashboard grew by exactly 1 row", after == before + 1, f"{before} -> {after}")
+    karongi_poverty = next(row for row in client.get("/api/metrics").json()["data"]
+                          if row["district"] == "Karongi" and row["indicator_code"] == "poverty_headcount"
+                          and row["survey_year"] == 2024)
+    check("upsert overwrote the 2024 value", karongi_poverty["value"] == 23.5, karongi_poverty)
+    r = client.post("/api/admin/microdata", headers=auth_header, json={"rows": []})
+    check("empty upload -> 422", r.status_code == 422)
+
+    auth.reset_rate_limiter()
+
+
 if __name__ == "__main__":
     main_flow()
+    auth_flow()
+    admin_mutations()
     print()
     if failures:
         print(f"{len(failures)} FAILURES ❌ -> {failures}")

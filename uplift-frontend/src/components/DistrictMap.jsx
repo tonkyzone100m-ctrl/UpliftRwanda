@@ -3,6 +3,7 @@ import { MapContainer, GeoJSON } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { Map as MapIcon, Satellite } from "lucide-react";
 import { METRIC_DEFS, formatMetricValue } from "../lib/metrics";
+import SectionCard from "./Card";
 
 const RW_CENTER = [-1.96, 29.87];
 const RW_BOUNDS = [[-2.85, 28.85], [-1.02, 30.95]];
@@ -40,10 +41,21 @@ export default function DistrictMap({ regions = [], selectedDistrict = "", onSel
   const [metricKey, setMetricKey] = useState("povertyRate");
   const layerRef = useRef(null);
   const [hovered, setHovered] = useState(null);
+  const mapRef = useRef(null);
+  const shellRef = useRef(null);
 
-  // Heatmap layer toggles. The CFSVA 2024 chips only light up once the
-  // food-security rows are in memory (Rule 3: toggle CFSVA layers onto the
-  // heatmap without touching the core FinScope layer behaviour).
+  // The map lives inside a tabbed SPA view; when the tab re-shows the container
+  // Leaflet still believes its size is 0, so re-measure on every resize event.
+  useEffect(() => {
+    const el = shellRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => mapRef.current?.invalidateSize());
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Heatmap layer toggles; CFSVA chips only activate once the food-security
+  // rows for the selected load have arrived (they layer on top of FinScope).
   const MAP_CHIP_GROUPS = [
     {
       id: "finscope",
@@ -145,23 +157,14 @@ export default function DistrictMap({ regions = [], selectedDistrict = "", onSel
   }, [geo, regional, def, hovered, selectedDistrict]);
 
   return (
-    <section
-      aria-label="Rwanda district choropleth"
-      className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
-    >
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-start gap-3">
-          <span className="rounded-lg bg-sky-50 p-2.5 text-sky-600">
-            <MapIcon className="h-5 w-5" aria-hidden="true" />
-          </span>
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">Rwanda District Heatmap</h2>
-            <p className="mt-0.5 text-xs text-gray-500">
-              Click a district to sync filters, insights and tables · boundaries: geoboundaries RWA-ADM2 (CC BY 4.0)
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-col items-end gap-1.5">
+    <SectionCard
+      ariaLabel="Rwanda district choropleth"
+      icon={MapIcon}
+      tone="sky"
+      title="Rwanda District Heatmap"
+      subtitle="Click a district to sync filters, insights and tables · boundaries: geoboundaries RWA-ADM2 (CC BY 4.0)"
+      actions={
+        <>
           <span
             aria-hidden="true"
             className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
@@ -170,7 +173,11 @@ export default function DistrictMap({ regions = [], selectedDistrict = "", onSel
           >
             {defIsCfsva ? "Source: CFSVA 2024" : "Source: FinScope / EICV7"}
           </span>
-          <div className="flex flex-wrap items-center justify-end gap-1.5" role="group" aria-label="Indicator selector for the map">
+          <div
+            className="flex flex-wrap items-center justify-end gap-1.5"
+            role="group"
+            aria-label="Indicator selector for the map"
+          >
             {MAP_CHIP_GROUPS.map((group) => (
               <div key={group.id} className="flex flex-wrap items-center gap-1.5">
                 <span
@@ -208,12 +215,37 @@ export default function DistrictMap({ regions = [], selectedDistrict = "", onSel
               </div>
             ))}
           </div>
-        </div>
-      </header>
-
-      <div className="mt-3 h-[420px] overflow-hidden rounded-xl border border-slate-200 sm:h-[520px]">
+        </>
+      }
+      bodyClass="p-4 sm:px-5 sm:pb-4 sm:pt-3"
+      footer={
+        <footer className="flex flex-wrap items-center justify-between gap-3 px-4 pb-4 sm:px-5">
+          <div className="flex items-center gap-1.5" aria-label="Quantile legend">
+            <span className="text-[11px] font-semibold text-slate-500">
+              {def.direction === "higher" ? "High ↓" : "Low ↓"} value → color:
+            </span>
+            {legendBands.map((band, i) => (
+              <span
+                key={i}
+                className="flex items-center gap-1 text-[11px] text-slate-600"
+                title={`Band ${i + 1} edge`}
+              >
+                <span className="h-3 w-5 rounded-sm border border-slate-300" style={{ background: band.color }} />
+                {band.label != null ? band.label.toFixed(1) : "—"}
+              </span>
+            ))}
+          </div>
+          <p className="text-[11px] text-slate-500">
+            Benchmark: <b>{def.label}</b> {def.target} · simple mean n={regional.size}
+            {nationalMean != null && <> · mean {nationalMean.toFixed(1)}%</>}
+          </p>
+        </footer>
+      }
+    >
+      <div ref={shellRef} className="h-[420px] overflow-hidden rounded-xl border border-slate-200 sm:h-[520px]">
         {geo ? (
           <MapContainer
+            ref={mapRef}
             center={RW_CENTER}
             bounds={RW_BOUNDS}
             zoomControl
@@ -244,32 +276,10 @@ export default function DistrictMap({ regions = [], selectedDistrict = "", onSel
       </div>
 
       {hovered && (
-        <p className="sr-only" aria-live="polite">
+        <p className="mt-3 sr-only" aria-live="polite">
           {hovered}: {regional.get(hovered.toLowerCase())?.toFixed(1) ?? "no value"} percent, {def.label}
         </p>
       )}
-
-      <footer className="mt-3 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5" aria-label="Quantile legend">
-          <span className="text-[11px] font-semibold text-slate-500">
-            {def.direction === "higher" ? "High ↓" : "Low ↓"} value → color:
-          </span>
-          {legendBands.map((band, i) => (
-            <span
-              key={i}
-              className="flex items-center gap-1 text-[11px] text-slate-600"
-              title={`Band ${i + 1} edge`}
-            >
-              <span className="h-3 w-5 rounded-sm border border-slate-300" style={{ background: band.color }} />
-              {band.label != null ? band.label.toFixed(1) : "—"}
-            </span>
-          ))}
-        </div>
-        <p className="text-[11px] text-slate-500">
-          Benchmark: <b>{def.label}</b> {def.target} · simple mean n={regional.size}
-          {nationalMean != null && <> · mean {nationalMean.toFixed(1)}%</>}
-        </p>
-      </footer>
-    </section>
+    </SectionCard>
   );
 }

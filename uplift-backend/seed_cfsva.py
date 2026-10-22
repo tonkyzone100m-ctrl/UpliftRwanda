@@ -8,7 +8,7 @@ survey_metrics/policy tables) are untouched. Requires `regions` to exist
 District values are profiled from the already-seeded FinScope/EICV7
 deterministic geography (poverty & climate exposure), then CALIBRATED so the
 population-weighted national means hit the CFSVA-2024 anchor values in
-ANCHORS below (tune them against the official bulletin before submission).
+ANCHORS below (verify them against the CFSVA 2024 bulletin before deployment).
 Deterministic jitter keeps outputs reproducible across runs.
 
 Usage:
@@ -123,7 +123,7 @@ def seed_cfsva(engine, drop_cfsva_first=False):
         DistrictCfsvaMetrics.__table__.drop(engine, checkfirst=True)
     DistrictCfsvaMetrics.__table__.create(engine, checkfirst=True)
 
-    # district EF rows from the canonical district geography
+    # District rows drawn from the canonical FinScope/EICV7 geography
     _, _, _, df_series = seed_data.build_dataset()
     district_names = [d for d, *_ in seed_data.DISTRICTS]
     weights = [seed_data.weight_of(d) for d in district_names]
@@ -139,7 +139,7 @@ def seed_cfsva(engine, drop_cfsva_first=False):
     calibrated: dict[str, list[tuple[str, float]]] = {}
 
     # ---- OFFICIAL provincial FIES fit (Western 23 / Southern 16 / Kigali 4 /
-    # Eastern 14; Northern is the residual that makes the national mean 17). --
+    # Eastern 14; Northern is the population-weight residual at 17.) ----
     province_rows: dict[str, list[int]] = {}
     for i, (_n, prov, _area, *_rest) in enumerate(seed_data.DISTRICTS):
         province_rows.setdefault(prov, []).append(i)

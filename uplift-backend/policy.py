@@ -5,7 +5,7 @@ benchmarks (FinScope 2024 / EICV7) and the dataset's own population-weighted
 national means, then emits targeted interventions aligned with NST2 and
 Vision 2050.
 
-Threshold rules (as specified by the hackathon criteria):
+Flag lines:
     * financial vulnerability share ... flag when > 30% of adults
     * mobile money usage ............. flag when < 75% of adults
     * climate shock exposure ......... flag when above the 69% national rate
@@ -13,19 +13,19 @@ Threshold rules (as specified by the hackathon criteria):
     * plus formal inclusion / credit / savings / social-protection guards
 
 Every insight is returned as a stable JSON dict consumed by the React
-dashboard (`PolicyInsights` panel), so the same rules power API clients,
-notebooks and presentations.
+dashboard (`PolicyInsights` panel).
 """
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 SEVERITY_RANK = {"critical": 0, "attention": 1, "strength": 2, "info": 3}
 
-# ════════════════════════════════════════════════════════════════════════════
+RULE_LOGGER = logging.getLogger("uplift_policy")
+
 # Official national benchmarks (FinScope 2024 / EICV7 headline statistics)
-# ════════════════════════════════════════════════════════════════════════════
 
 NATIONAL_BENCHMARKS: dict[str, float] = {
     "financial_inclusion_rate": 96.0,     # 96% of adults financially included
@@ -43,7 +43,7 @@ NATIONAL_BENCHMARKS: dict[str, float] = {
     "social_protection": 61.3,            # EICV7 programme reach
 }
 
-# Explicit intervention thresholds (hackathon evaluation criteria)
+# Explicit intervention thresholds
 VULNERABILITY_SHARE_FLAG = 30.0         # flag districts above 30% vulnerability
 VULNERABILITY_SHARE_CRITICAL = 37.0     # escalate above 37%
 MOBILE_MONEY_FLOOR = 75.0               # flag districts below 75% mobile money
@@ -105,19 +105,17 @@ def _compare(metric: str, metrics: dict[str, float]) -> str:
     )
 
 
-# ════════════════════════════════════════════════════════════════════════════
 # Rule definitions
-# ════════════════════════════════════════════════════════════════════════════
 
 
-def _rule_poverty(m, nat):
+def _rule_poverty(m, nat, t):
     if m.get("poverty_headcount") is None:
         return None
     pov = m["poverty_headcount"]
-    if pov > POVERTY_LIMIT:
+    if pov > t["poverty_limit"]:
         data_lines = [
             _compare("poverty_headcount", m),
-            f"Flagged rule: poverty headcount > {POVERTY_LIMIT:.0f}%.",
+            f"Flagged rule: poverty headcount > {t["poverty_limit"]:.0f}%.",
         ]
         mean_pov = nat.get("poverty_headcount")
         if mean_pov is not None:
@@ -169,12 +167,12 @@ def _rule_poverty(m, nat):
     return None
 
 
-def _rule_vulnerability(m, nat) -> dict[str, Any] | None:
+def _rule_vulnerability(m, nat, t) -> dict[str, Any] | None:
     share = vulnerability_share(m)
     if share is None:
         return None
     national = nat.get("vulnerability_share", NATIONAL_BENCHMARKS["vulnerability_share"])
-    if share <= VULNERABILITY_SHARE_FLAG:
+    if share <= t["vulnerability_share_flag"]:
         if share <= national - 3.0:
             return {
                 "id": "vulnerability-strength",
@@ -192,7 +190,7 @@ def _rule_vulnerability(m, nat) -> dict[str, Any] | None:
                 ],
             }
         return None
-    severity = "critical" if share > VULNERABILITY_SHARE_CRITICAL else "attention"
+    severity = "critical" if share > t["vulnerability_share_critical"] else "attention"
     return {
         "id": "vulnerability-share",
         "severity": severity,
@@ -200,32 +198,32 @@ def _rule_vulnerability(m, nat) -> dict[str, Any] | None:
         "title": "Scale up consumption-smoothing support",
         "description": (
             f"{_pct(share)} of adults are financially vulnerable or extreme "
-            f"(national flag line: {VULNERABILITY_SHARE_FLAG:.0f}%). Reinforce shock-"
+            f"(national flag line: {t["vulnerability_share_flag"]:.0f}%). Reinforce shock-"
             "responsive cash transfers, hedge informal-group savings with "
             "graduation support and prioritise the district in the next VUP cycle."
         ),
         "data": [
             f"Vulnerability share: {_pct(share)} vs national {_pct(national)} "
             f"({_delta(share, national)}).",
-            f"Flagged rule: vulnerability share > {VULNERABILITY_SHARE_FLAG:.0f}%.",
+            f"Flagged rule: vulnerability share > {t["vulnerability_share_flag"]:.0f}%.",
         ],
     }
 
 
-def _rule_mobile_money(m, nat) -> dict[str, Any] | None:
+def _rule_mobile_money(m, nat, t) -> dict[str, Any] | None:
     value = m.get("mobile_money")
     if value is None:
         return None
     national = nat.get("mobile_money", NATIONAL_BENCHMARKS["mobile_money"])
-    if value < MOBILE_MONEY_FLOOR:
-        severity = "critical" if value < MOBILE_MONEY_CRITICAL else "attention"
+    if value < t["mobile_money_floor"]:
+        severity = "critical" if value < t["mobile_money_critical"] else "attention"
         return {
             "id": "mobile-money",
             "severity": severity,
             "pillar": "NST2 · Economic Transformation",
             "title": "Deepen mobile-money adoption corridors",
             "description": (
-                f"Mobile-money usage is {_pct(value)}, below the {MOBILE_MONEY_FLOOR:.0f}% "
+                f"Mobile-money usage is {_pct(value)}, below the {t["mobile_money_floor"]:.0f}% "
                 f"flag floor (national rate {_pct(NATIONAL_BENCHMARKS['mobile_money'])}). "
                 "Partner with MTN MoMo / Airtel Money on fee-free government pay-ins, "
                 "agent coverage at markets, and GSM registration drives."
@@ -233,7 +231,7 @@ def _rule_mobile_money(m, nat) -> dict[str, Any] | None:
             "data": [
                 f"Mobile money usage: {_pct(value)} vs national mean {_pct(national)} "
                 f"({_delta(value, national)}).",
-                f"Flagged rule: mobile money < {MOBILE_MONEY_FLOOR:.0f}%.",
+                f"Flagged rule: mobile money < {t["mobile_money_floor"]:.0f}%.",
             ],
         }
     if national is not None and value >= national + 3.0:
@@ -255,13 +253,13 @@ def _rule_mobile_money(m, nat) -> dict[str, Any] | None:
     return None
 
 
-def _rule_inclusion(m, nat) -> dict[str, Any] | None:
+def _rule_inclusion(m, nat, t) -> dict[str, Any] | None:
     value = m.get("financial_inclusion_rate")
     if value is None:
         return None
     national = nat.get("financial_inclusion_rate", NATIONAL_BENCHMARKS["financial_inclusion_rate"])
-    if value < INCLUSION_CRITICAL or value < INCLUSION_ATTENTION:
-        severity = "critical" if value < INCLUSION_CRITICAL else "attention"
+    if value < t["inclusion_critical"] or value < t["inclusion_attention"]:
+        severity = "critical" if value < t["inclusion_critical"] else "attention"
         return {
             "id": "inclusion-gap",
             "severity": severity,
@@ -276,8 +274,8 @@ def _rule_inclusion(m, nat) -> dict[str, Any] | None:
             "data": [
                 f"Financial inclusion: {_pct(value)} vs national mean {_pct(national)} "
                 f"({_delta(value, national)}).",
-                f"Flagged rule: inclusion < {INCLUSION_ATTENTION:.0f}%/"
-                f"{INCLUSION_CRITICAL:.0f}% bands.",
+                f"Flagged rule: inclusion < {t["inclusion_attention"]:.0f}%/"
+                f"{t["inclusion_critical"]:.0f}% bands.",
             ],
         }
     if national is not None and value >= national:
@@ -299,12 +297,12 @@ def _rule_inclusion(m, nat) -> dict[str, Any] | None:
     return None
 
 
-def _rule_credit(m, nat) -> dict[str, Any] | None:
+def _rule_credit(m, nat, t) -> dict[str, Any] | None:
     value = m.get("formal_credit")
-    if value is None or value >= CREDIT_FLOOR:
+    if value is None or value >= t["credit_floor"]:
         return None
     national = nat.get("formal_credit", NATIONAL_BENCHMARKS["formal_credit"])
-    severity = "critical" if value < CREDIT_FLOOR - 5.0 else "attention"
+    severity = "critical" if value < t["credit_floor"] - 5.0 else "attention"
     return {
         "id": "credit-gap",
         "severity": severity,
@@ -319,17 +317,17 @@ def _rule_credit(m, nat) -> dict[str, Any] | None:
         "data": [
             f"Formal credit usage: {_pct(value)} vs national mean {_pct(national)} "
             f"({_delta(value, national)}).",
-            f"Flagged rule: formal credit < {CREDIT_FLOOR:.0f}%.",
+            f"Flagged rule: formal credit < {t["credit_floor"]:.0f}%.",
         ],
     }
 
 
-def _rule_savings(m, nat) -> dict[str, Any] | None:
+def _rule_savings(m, nat, t) -> dict[str, Any] | None:
     value = m.get("formal_savings")
-    if value is None or value >= SAVINGS_FLOOR:
+    if value is None or value >= t["savings_floor"]:
         return None
     national = nat.get("formal_savings", NATIONAL_BENCHMARKS["formal_savings"])
-    severity = "critical" if value < SAVINGS_FLOOR - 10.0 else "attention"
+    severity = "critical" if value < t["savings_floor"] - 10.0 else "attention"
     return {
         "id": "savings-gap",
         "severity": severity,
@@ -348,12 +346,12 @@ def _rule_savings(m, nat) -> dict[str, Any] | None:
     }
 
 
-def _rule_social_protection(m, nat) -> dict[str, Any] | None:
+def _rule_social_protection(m, nat, t) -> dict[str, Any] | None:
     value = m.get("social_protection")
-    if value is None or value >= SP_FLOOR:
+    if value is None or value >= t["sp_floor"]:
         return None
     national = nat.get("social_protection", NATIONAL_BENCHMARKS["social_protection"])
-    severity = "critical" if value < SP_FLOOR - 8.0 else "attention"
+    severity = "critical" if value < t["sp_floor"] - 8.0 else "attention"
     return {
         "id": "social-protection",
         "severity": severity,
@@ -372,12 +370,12 @@ def _rule_social_protection(m, nat) -> dict[str, Any] | None:
     }
 
 
-def _rule_climate(m, nat) -> dict[str, Any] | None:
+def _rule_climate(m, nat, t) -> dict[str, Any] | None:
     value = m.get("climate_shock")
-    if value is None or value <= CLIMATE_ATTENTION:
+    if value is None or value <= t["climate_attention"]:
         return None
     national = nat.get("climate_shock", NATIONAL_BENCHMARKS["climate_shock"])
-    severity = "critical" if value > CLIMATE_CRITICAL else "attention"
+    severity = "critical" if value > t["climate_critical"] else "attention"
     description = (
         f"{_pct(value)} of adults experienced climate shocks (national rate: "
         f"{_pct(NATIONAL_BENCHMARKS['climate_shock'])}). Prioritise climate-"
@@ -402,12 +400,12 @@ def _rule_climate(m, nat) -> dict[str, Any] | None:
             f"Climate shock exposure: {_pct(value)} vs national mean {_pct(national)} "
             f"({_delta(value, national)}).",
             f"Flagged rule: exposure above national rate "
-            f"{CLIMATE_ATTENTION:.0f}% / critical {CLIMATE_CRITICAL:.0f}%.",
+            f"{t["climate_attention"]:.0f}% / critical {t["climate_critical"]:.0f}%.",
         ],
     }
 
 
-def _rule_healthy(m, nat) -> dict[str, Any] | None:
+def _rule_healthy(m, nat, t) -> dict[str, Any] | None:
     value = m.get("financial_health")
     if value is None:
         return None
@@ -432,14 +430,14 @@ def _rule_healthy(m, nat) -> dict[str, Any] | None:
     return None
 
 
-def _rule_extreme_poverty(m, nat) -> dict[str, Any] | None:
+def _rule_extreme_poverty(m, nat, t) -> dict[str, Any] | None:
     value = m.get("extreme_poverty_rate")
-    if value is None or value <= EXTREME_POVERTY_FLOOR:
+    if value is None or value <= t["extreme_poverty_floor"]:
         return None
     national = nat.get("extreme_poverty_rate", NATIONAL_BENCHMARKS["extreme_poverty_rate"])
     return {
         "id": "extreme-poverty",
-        "severity": "critical" if value > EXTREME_POVERTY_FLOOR + 2.0 else "attention",
+        "severity": "critical" if value > t["extreme_poverty_floor"] + 2.0 else "attention",
         "pillar": "NST2 · Social Protection",
         "title": "Intensify direct-support graduation programmes",
         "description": (
@@ -474,27 +472,53 @@ MAX_INSIGHTS = 8
 def generate_insights(
     metrics: dict[str, float],
     national_means: dict[str, float] | None = None,
+    targets: dict[str, float] | None = None,
 ) -> dict[str, Any]:
-    """Runs every rule and returns a render-ready payload."""
+    """Runs every rule and returns a render-ready payload.
+
+    `targets` overrides the shipped official flag-lines (poverty guardrail,
+    mobile-money floor, vulnerability bands, ...) for ministerial what-if
+    scenarios; absent keys fall back to the official defaults above.
+    """
+    defaults = {
+        "poverty_limit": POVERTY_LIMIT,
+        "vulnerability_share_flag": VULNERABILITY_SHARE_FLAG,
+        "vulnerability_share_critical": VULNERABILITY_SHARE_CRITICAL,
+        "mobile_money_floor": MOBILE_MONEY_FLOOR,
+        "mobile_money_critical": MOBILE_MONEY_CRITICAL,
+        "inclusion_attention": INCLUSION_ATTENTION,
+        "inclusion_critical": INCLUSION_CRITICAL,
+        "climate_attention": CLIMATE_ATTENTION,
+        "climate_critical": CLIMATE_CRITICAL,
+        "savings_floor": SAVINGS_FLOOR,
+        "credit_floor": CREDIT_FLOOR,
+        "sp_floor": SP_FLOOR,
+        "extreme_poverty_floor": EXTREME_POVERTY_FLOOR,
+    }
+    t: dict[str, float] = {**defaults, **(targets or {})}
     available = {k: v for k, v in metrics.items() if v is not None}
     nat = national_means or {}
     insights: list[dict[str, Any]] = []
     for rule in RULES:
         try:
-            insight = rule(available, nat)
-        except Exception:  # a broken rule never breaks the whole panel
+            insight = rule(available, nat, t)
+        except Exception as exc:  # a broken rule must never take down the panel
+            RULE_LOGGER.warning("rule %s failed: %s", rule.__name__, exc)
             continue
         if insight:
             insights.append(insight)
     insights.sort(key=lambda i: SEVERITY_RANK.get(i["severity"], 9))
+    outside_baseline = {k: v for k, v in t.items() if v != defaults[k]}
     return {
         "insights": insights[:MAX_INSIGHTS],
+        "using_baseline_targets": not outside_baseline,
+        "active_target_overrides": outside_baseline or None,
         "thresholds": {
-            "vulnerability_share_flag": VULNERABILITY_SHARE_FLAG,
-            "mobile_money_floor": MOBILE_MONEY_FLOOR,
-            "poverty_limit": POVERTY_LIMIT,
-            "climate_attention": CLIMATE_ATTENTION,
-            "climate_critical": CLIMATE_CRITICAL,
+            "vulnerability_share_flag": t["vulnerability_share_flag"],
+            "mobile_money_floor": t["mobile_money_floor"],
+            "poverty_limit": t["poverty_limit"],
+            "climate_attention": t["climate_attention"],
+            "climate_critical": t["climate_critical"],
         },
         "benchmarks": NATIONAL_BENCHMARKS,
     }

@@ -1,11 +1,5 @@
 """Analytics + policy-engine endpoints for UpliftRwanda.
 
-Kept as a separate router so main.py stays focused on connection handling
-and the raw /api/metrics feed. Included in main.py with:
-
-    from insights_api import router as insights_router
-    app.include_router(insights_router)
-
 Endpoints
 ---------
     GET /api/districts               district index (ids + province + weights)
@@ -19,8 +13,10 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from auth import get_current_admin
+from models import as_int, as_float
 from policy import generate_insights
-from seed_data import build_dataset  # noqa: F401  (validated by seed_data itself)
+from targets import effective_targets
 
 router = APIRouter(prefix="/api", tags=["insights"])
 
@@ -58,24 +54,6 @@ INDICATOR_QUERY = text("""
 """)
 
 
-def _as_int(value):
-    if value is None:
-        return None
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def _as_float(value):
-    if value is None:
-        return None
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
 def get_db():
     """Late binding so monkeypatching main.SessionLocal covers insight routes too."""
     from main import SessionLocal
@@ -95,8 +73,8 @@ def list_districts(db: Session = Depends(get_db)):
         "district": row[1],
         "province": row[2],
         "area_type": row[3],
-        "population_weight": _as_float(row[4]),
-        "metric_count": _as_int(row[5]),
+        "population_weight": as_float(row[4]),
+        "metric_count": as_int(row[5]),
     } for row in rows]
     return {"status": "success", "count": len(data), "data": data}
 
@@ -140,7 +118,7 @@ def _resolve_district(db, ref):
         "district": row[1],
         "province": row[2],
         "area_type": row[3],
-        "population_weight": _as_float(row[4]),
+        "population_weight": as_float(row[4]),
     }, None
 
 
@@ -152,7 +130,7 @@ def _load_metric_map(db, region_id):
         WHERE sm.region_id = :rid AND sm.survey_year = :yr
     """)
     return {
-        code: _as_float(value)
+        code: as_float(value)
         for code, value in db.execute(query, {"rid": region_id, "yr": SURVEY_YEAR}).fetchall()
     }
 
@@ -168,13 +146,14 @@ def _load_national_means(db):
         GROUP BY i.indicator_code
     """)
     return {
-        code: round(_as_float(mean), 2)
+        code: round(as_float(mean), 2)
         for code, mean in db.execute(query, {"yr": SURVEY_YEAR}).fetchall()
     }
 
 
-def _insights_payload(metrics):
-    payload = generate_insights(metrics, OFFICIAL_BENCHMARKS)
+def _insights_payload(metrics, targets=None):
+    """Policy-engine payload; ministerial target overrides flow through here."""
+    payload = generate_insights(metrics, OFFICIAL_BENCHMARKS, targets=targets)
     payload["benchmarks"] = OFFICIAL_BENCHMARKS
     return payload
 
@@ -194,57 +173,40 @@ def district_insights(ref: str, db: Session = Depends(get_db)):
             },
         )
     metrics = _load_metric_map(db, district["id"])
-    return {"status": "success", "district": district, **_insights_payload(metrics)}
+    return {"status": "success", "district": district, **_insights_payload(metrics, effective_targets(db))}
 
 
 @router.get("/insights/national")
 def national_insights(db: Session = Depends(get_db)):
     """Population-weighted national means passed through the policy engine."""
     metrics = _load_national_means(db)
-    return {"status": "success", "scope": "national", "metrics": metrics, **_insights_payload(metrics)}
+    return {"status": "success", "scope": "national", "metrics": metrics, **_insights_payload(metrics, effective_targets(db))}
 
 
-# ---------------------------------------------------------------------------
-# Demo bootstrap: runs the FinScope/EICV7 seeder with THIS process's engine,
-# so no DB password needs to be exported into any other shell.
-# Replace/refresh the live 12-row donor dataset with the calibrated
-# 30-district x 14-indicator dataset (420 rows).
-# ---------------------------------------------------------------------------
-
-@router.post("/admin/seed")
-def seed_database(confirm: str = "", drop_existing: bool = True, include_cfsva: bool = True):
-    if confirm != "uplift2026":
-        return JSONResponse(
-            status_code=401,
-            content={
-                "status": "error",
-                "code": "confirm_required",
-                "hint": "This endpoint replaces all analytics tables with the "
-                        "calibrated FinScope 2024 / EICV7 dataset. Call with "
-                        "?confirm=uplift2026 if that is intended.",
-            },
-        )
+@router.post("/admin/seed", summary="Admin-only: full dataset reseed (JWT required)")
+def seed_database(
+    drop_existing: bool = True,
+    include_cfsva: bool = True,
+    _admin: dict = Depends(get_current_admin),
+):
+    """Regenerate the calibrated FinScope/EICV7 (+CFSVA) dataset."""
     import seed_data
     from main import engine
 
-    engine_local = engine
     if drop_existing:
-        # Legacy cleanup FIRST: the dev-era table name (renamed to
-        # district_cfsva_metrics) is not part of current metadata, so its FK
-        # would block `drop_all() from dropping regions (Postgres FK
-        # dependency). SQLite reorders silently, Postgres does not.
-        from sqlalchemy import text
-        with engine_local.begin() as conn:
+        # Legacy table name (renamed to district_cfsva_metrics) is gone from the
+        # metadata; its FK would block drop_all() on regions in Postgres.
+        with engine.begin() as conn:
             conn.execute(text("DROP TABLE IF EXISTS district_food_security"))
         from models import Base
-        Base.metadata.drop_all(engine_local)
-    regions, indicators, metrics, series = seed_data.seed(engine_local, drop_existing=drop_existing)
+        Base.metadata.drop_all(engine)
+    regions, indicators, metrics, _ = seed_data.seed(engine, drop_existing=drop_existing)
 
     cfsva_seeded = bool(include_cfsva)
     if include_cfsva:
         try:
             import seed_cfsva
-            seed_cfsva.seed_cfsva(engine_local)
+            seed_cfsva.seed_cfsva(engine)
         except Exception as exc:  # CFSVA layer failure must not fail FinScope seeding
             cfsva_seeded = False
             return {

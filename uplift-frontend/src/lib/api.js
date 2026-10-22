@@ -1,10 +1,11 @@
-const BASE_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
+export const BASE_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
 
 export class ApiError extends Error {
-  constructor(message, { status, cause } = {}) {
+  constructor(message, { status, cause, extra } = {}) {
     super(message, cause ? { cause } : undefined);
     this.name = "ApiError";
     this.status = status;
+    this.extra = extra ?? null;
   }
 }
 
@@ -46,6 +47,26 @@ async function fetchRows(path, { signal } = {}) {
     throw new ApiError("The API returned an unexpected response shape.");
   }
   return payload.data;
+}
+
+/**
+ * Public snapshot of the national policy baseline (defaults + overrides +
+ * per-key audit entries). Console tooling uses this to render the editor.
+ */
+export async function fetchTargets({ signal } = {}) {
+  let res;
+  try {
+    res = await fetch(`${BASE_URL}/api/targets`, { signal, headers: { Accept: "application/json" } });
+  } catch (err) {
+    if (err.name === "AbortError") throw err;
+    throw new ApiError(`Cannot reach the analytics API at ${BASE_URL}.`, { cause: err });
+  }
+  if (!res.ok) throw new ApiError(`API responded with ${res.status}`, { status: res.status });
+  const payload = await res.json();
+  if (payload.status !== "success" || typeof payload.targets !== "object") {
+    throw new ApiError("The API returned an unexpected response shape.");
+  }
+  return payload;
 }
 
 /**

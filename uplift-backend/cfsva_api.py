@@ -1,9 +1,5 @@
 """CFSVA 2024 routers — additive only (no existing endpoint is modified).
 
-Registered from main.py:
-    from cfsva_api import router as cfsva_router
-    app.include_router(cfsva_router)
-
 Endpoints
 ---------
 GET /api/cfsva/indicators         -> indicator catalog + national anchors

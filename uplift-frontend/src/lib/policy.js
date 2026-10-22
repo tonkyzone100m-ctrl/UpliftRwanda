@@ -41,7 +41,7 @@ export function buildPolicyInsights(region, stats) {
 
   const add = (insight) => insights.push(insight);
 
-  // --- poverty -------------------------------------------------------------
+  // poverty
   if (pov != null && pov > 30) {
     add({
       id: "poverty-critical",
@@ -79,7 +79,7 @@ export function buildPolicyInsights(region, stats) {
     });
   }
 
-  // --- financial-health vulnerability share (FinScope composite) -----------
+  // financial-health vulnerability share (FinScope composite)
   if (vul != null || xvl != null) {
     const share = (vul ?? 0) + (xvl ?? 0);
     const natShare = (() => {
@@ -118,7 +118,7 @@ export function buildPolicyInsights(region, stats) {
     }
   }
 
-  // --- mobile money ----------------------------------------------------------
+  // mobile money
   if (mm != null && mm < 75) {
     add({
       id: "mobile-money",
@@ -144,7 +144,7 @@ export function buildPolicyInsights(region, stats) {
     });
   }
 
-  // --- inclusion -------------------------------------------------------------
+  // inclusion
   if (inc != null && inc < 90) {
     add({
       id: "inclusion-gap",
@@ -180,7 +180,7 @@ export function buildPolicyInsights(region, stats) {
     });
   }
 
-  // --- credit / savings ------------------------------------------------------
+  // credit / savings
   if (cre != null && cre < 21) {
     add({
       id: "credit-gap",
@@ -206,7 +206,7 @@ export function buildPolicyInsights(region, stats) {
     });
   }
 
-  // --- social protection ------------------------------------------------------
+  // social protection
   if (soc != null && soc < 58) {
     add({
       id: "social-protection",
@@ -220,7 +220,7 @@ export function buildPolicyInsights(region, stats) {
     });
   }
 
-  // --- climate resilience (FinScope 2024: 69% national) ---------------------
+  // climate resilience (FinScope 2024: 69% national)
   if (cli != null && cli > 69) {
     add({
       id: "climate-resilience",
@@ -235,7 +235,7 @@ export function buildPolicyInsights(region, stats) {
     });
   }
 
-  // --- financial health ladder (FinScope 2024: 10% healthy) -----------------
+  // financial health ladder (FinScope 2024: 10% healthy)
   if (hea != null && hea < 9) {
     add({
       id: "financial-health",
@@ -249,7 +249,7 @@ export function buildPolicyInsights(region, stats) {
     });
   }
 
-  // --- extreme poverty (EICV7: 4.5%) -----------------------------------------
+  // extreme poverty (EICV7: 4.5%)
   if (xpo != null && xpo > 6) {
     add({
       id: "extreme-poverty",

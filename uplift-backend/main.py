@@ -8,10 +8,12 @@ from sqlalchemy import URL, create_engine, text
 from sqlalchemy.exc import DBAPIError, SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
+from models import as_int, as_float
+
 logger = logging.getLogger("uplift_api")
 
 # ---------------------------------------------------------------------------
-# 1. Connection configuration (Configured for user: it-eng)
+# 1. Connection configuration
 # ---------------------------------------------------------------------------
 DB_NAME = os.getenv("DB_NAME", "uplift_rwanda_db")
 DB_USER = os.getenv("DB_USER", "it-eng")
@@ -50,15 +52,82 @@ engine = create_engine(
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-app = FastAPI(title="UpliftRwanda API", version="1.2")
 
+def _ensure_seed_data(engine) -> None:
+    """Populate an EMPTY database at boot so a fresh clone serves real data immediately.
+
+    The deterministic seeders (FinScope/EICV7 profiling + CFSVA 2024 calibration)
+    produce the same 870 observations every run. No-op once survey rows exist, and
+    never invoked for sqlite (the test suites drive their own data).
+    """
+    if str(DATABASE_URL).startswith("sqlite"):
+        return
+    try:
+        with engine.connect() as conn:
+            existing = conn.execute(text("SELECT count(*) FROM survey_metrics")).scalar_one()
+    except SQLAlchemyError:
+        existing = 0  # survey_metrics not created yet on a brand-new database
+    if existing:
+        return
+    logger.info("boot: empty database detected - seeding FinScope/EICV7 + CFSVA 2024 (deterministic)")
+    import seed_cfsva
+    import seed_data
+    region_count, indicator_count, metric_count, _series = seed_data.seed(engine, drop_existing=False)
+    logger.info(
+        "boot: seed complete - %s regions / %s indicators / %s survey rows",
+        region_count, indicator_count, metric_count,
+    )
+    try:
+        seed_cfsva.seed_cfsva(engine)
+        logger.info("boot: CFSVA 2024 layer seeded (30 districts x 9 statistics)")
+    except Exception as exc:  # CFSVA layer failure must not fail FinScope seeding
+        logger.warning("boot: CFSVA 2024 layer failed to seed: %s", exc)
+
+
+try:
+    from models import NationalTarget  # noqa: F401
+    from models import Base
+    Base.metadata.create_all(engine, tables=[NationalTarget.__table__])
+    try:
+        _ensure_seed_data(engine)
+    except Exception as exc:  # seed failure must not block API startup
+        logger.warning(
+            "auto-seed skipped (%s); run `python3 seed_data.py && python3 seed_cfsva.py` manually.", exc
+        )
+    # Release the boot-time connection: SQLite test flows delete and recreate the
+    # file at this path, and a pooled handle would keep serving the orphan inode
+    # (reads succeed, writes raise readonly).
+    engine.dispose()
+except SQLAlchemyError:
+    logger.warning("national_targets bootstrap skipped (database unreachable at boot).")
+
+app = FastAPI(title="UpliftRwanda API", version="1.3")
+
+_cors_origins = [
+    origin.strip()
+    for origin in os.getenv(
+        "UPLIFT_CORS_ORIGINS",
+        "http://localhost:5173,http://127.0.0.1:5173,"
+        "http://localhost:4173,http://127.0.0.1:4173,"
+        "http://localhost:3000,http://127.0.0.1:3000",
+    ).split(",")
+    if origin.strip()
+]
+# Bearer-token auth (no cookies) - credentials stays False so wildcard origins
+# can never be combined with credentialed requests.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_cors_origins,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
+
+from auth import auth_router  # noqa: E402
+app.include_router(auth_router)
+
+from admin_api import router as admin_router  # noqa: E402
+app.include_router(admin_router)
 
 from insights_api import router as insights_router  # noqa: E402
 app.include_router(insights_router)
@@ -70,7 +139,7 @@ from cfsva_api import router as cfsva_router  # noqa: E402
 app.include_router(cfsva_router)
 
 # ---------------------------------------------------------------------------
-# 2. Robust session handling + clean JSON error mapping (no raw 500s)
+# 2. Session lifecycle + JSON error mapping (internal failures never leak)
 # ---------------------------------------------------------------------------
 
 def get_db():
@@ -99,7 +168,7 @@ def _db_hint(exc: DBAPIError) -> str:
 @app.exception_handler(DBAPIError)
 async def database_error_handler(request: Request, exc: DBAPIError):
     orig = getattr(exc, "orig", exc)
-    logger.error("Database error on %s %s: %s", request.method, request.url.path, orig)
+    logger.error("Database error on %s %s: %s", request.method, request.url.path, orig, exc_info=True)
     return JSONResponse(
         status_code=503,
         content={
@@ -153,24 +222,6 @@ def health():
         )
 
 
-def _as_int(value):
-    if value is None:
-        return None
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def _as_float(value):
-    if value is None:
-        return None
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
 @app.get("/api/metrics")
 def get_survey_metrics(db: Session = Depends(get_db)):
     query = text("""
@@ -192,8 +243,8 @@ def get_survey_metrics(db: Session = Depends(get_db)):
         "indicator_name": row[4],
         "category": row[5],
         "unit": row[6],
-        "survey_year": _as_int(row[7]),
-        "value": _as_float(row[8]),
+        "survey_year": as_int(row[7]),
+        "value": as_float(row[8]),
     } for row in rows]
 
     return {"status": "success", "count": len(metrics), "data": metrics}

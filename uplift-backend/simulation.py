@@ -2,9 +2,10 @@
 
 Approach
 --------
-A deliberately transparent, auditable model — the judges (NISR economists) must
-be able to verify every coefficient. Each relationship is a cross-sectional
-elasticity learned FROM THE SEEDED DATASET itself (30 districts), blended with
+A deliberately transparent, auditable model — NISR economists reviewing the
+code must be able to verify every coefficient. Each relationship is a
+cross-sectional elasticity learned from the seeded dataset itself
+(30 districts), blended with
 FinScope 2024 / EICV7 priors via a Ridge term that anchors each coefficient to
 a literature-based prior value (see PRIORS) when the cross-section is weak.
 
@@ -120,7 +121,7 @@ def fit_elasticities(db):
             coefs, _, _, _ = np.linalg.lstsq(A, y, rcond=None)
             residuals = y - A @ coefs
             dof = max(n - A.shape[1], 1)
-            rmse = float(np.sqrt(np.sum(Wn * residuals ** 2) * (n / dof / np.sum(Wn)) ))
+            rmse = float(np.sqrt(np.sum(Wn * residuals ** 2) * (n / dof / np.sum(Wn))))
             raw = {c: float(coefs[i + 1]) for i, c in enumerate(DRIVERS)}
             # OLS standard errors (non-weighted homoskedastic family; enough for blending)
             c_inv = np.linalg.pinv(A.T @ A)
