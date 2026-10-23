@@ -130,9 +130,8 @@ export default function PolicyInsights({ district = "", fallbackRegion = null, f
         <div className="mt-4 flex items-start gap-3 rounded-xl border border-slate-700 bg-slate-800/60 p-4">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-300" aria-hidden="true" />
           <p className="text-xs leading-relaxed text-slate-300">
-            No policy rules matched for this scope yet. Once FinScope/EICV indicators for {scope} are
-            present in the database, NST2 recommendations appear here automatically
-            (rules: poverty &gt; 30%, vulnerability &gt; 30%, mobile money &lt; 75%, climate exposure &gt; 69%).
+            No policy rules matched yet. Once indicators for {scope} exist in the database, NST2
+            recommendations appear here automatically.
           </p>
         </div>
       ) : (

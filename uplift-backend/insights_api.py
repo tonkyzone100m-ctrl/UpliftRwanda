@@ -38,8 +38,6 @@ OFFICIAL_BENCHMARKS = {
     "extremely_vulnerable": 3.0,
 }
 
-SURVEY_YEAR = 2024
-
 DISTRICT_INDEX_QUERY = text("""
     SELECT r.id, r.district, r.province, r.area_type, r.population_weight,
            (SELECT COUNT(*) FROM survey_metrics sm WHERE sm.region_id = r.id) AS metric_count
@@ -122,33 +120,49 @@ def _resolve_district(db, ref):
     }, None
 
 
-def _load_metric_map(db, region_id):
+def _load_metric_map(db: Session, region_id: int) -> tuple[dict, dict]:
+    """Latest survey vintage wins per (district, indicator).
+
+    Uploaded vintages (e.g. the 2025 LFS) override the calibrated 2024 baseline
+    indicator-by-indicator; indicators without a newer row keep the baseline.
+    Returns ({indicator_code: value}, {indicator_code: survey_year}).
+    """
     query = text("""
-        SELECT i.indicator_code, ROUND(CAST(sm.value AS numeric), 1) AS value
+        SELECT i.indicator_code, sm.survey_year, ROUND(CAST(sm.value AS numeric), 1) AS value
         FROM survey_metrics sm
         JOIN indicators i ON sm.indicator_id = i.id
-        WHERE sm.region_id = :rid AND sm.survey_year = :yr
+        WHERE sm.region_id = :rid
+          AND sm.survey_year = (
+              SELECT MAX(t.survey_year) FROM survey_metrics t
+              WHERE t.region_id = sm.region_id AND t.indicator_id = sm.indicator_id
+          )
+        ORDER BY i.indicator_code;
     """)
-    return {
-        code: as_float(value)
-        for code, value in db.execute(query, {"rid": region_id, "yr": SURVEY_YEAR}).fetchall()
-    }
+    rows = db.execute(query, {"rid": region_id}).fetchall()
+    metrics = {code: as_float(value) for code, _year, value in rows}
+    vintage_years = {code: as_int(year) for code, year, _value in rows}
+    return metrics, vintage_years
 
 
-def _load_national_means(db):
+def _load_national_means(db: Session) -> tuple[dict, dict]:
+    """Population-weighted means over each district's latest vintage."""
     query = text("""
-        SELECT i.indicator_code,
-               SUM(sm.value * r.population_weight) / SUM(r.population_weight) AS mean
+        SELECT i.indicator_code, MAX(sm.survey_year) AS vintage_year,
+               SUM(sm.value * r.population_weight) / NULLIF(SUM(r.population_weight), 0) AS mean
         FROM survey_metrics sm
         JOIN regions r ON sm.region_id = r.id
         JOIN indicators i ON sm.indicator_id = i.id
-        WHERE sm.survey_year = :yr
+        WHERE sm.survey_year = (
+              SELECT MAX(t.survey_year) FROM survey_metrics t
+              WHERE t.region_id = sm.region_id AND t.indicator_id = sm.indicator_id
+        )
         GROUP BY i.indicator_code
+        ORDER BY i.indicator_code;
     """)
-    return {
-        code: round(as_float(mean), 2)
-        for code, mean in db.execute(query, {"yr": SURVEY_YEAR}).fetchall()
-    }
+    rows = db.execute(query).fetchall()
+    metrics = {code: round(as_float(mean), 2) for code, _year, mean in rows}
+    vintage_years = {code: as_int(year) for code, year, _mean in rows}
+    return metrics, vintage_years
 
 
 def _insights_payload(metrics, targets=None):
@@ -172,24 +186,47 @@ def district_insights(ref: str, db: Session = Depends(get_db)):
                 "hint": hint,
             },
         )
-    metrics = _load_metric_map(db, district["id"])
-    return {"status": "success", "district": district, **_insights_payload(metrics, effective_targets(db))}
+    metrics, vintage_years = _load_metric_map(db, district["id"])
+    return {
+        "status": "success",
+        "district": district,
+        "vintage_years": vintage_years,
+        "metrics": metrics,
+        **_insights_payload(metrics, effective_targets(db)),
+    }
 
 
 @router.get("/insights/national")
 def national_insights(db: Session = Depends(get_db)):
     """Population-weighted national means passed through the policy engine."""
-    metrics = _load_national_means(db)
-    return {"status": "success", "scope": "national", "metrics": metrics, **_insights_payload(metrics, effective_targets(db))}
+    metrics, vintage_years = _load_national_means(db)
+    years_query = text("SELECT DISTINCT sm.survey_year FROM survey_metrics sm ORDER BY sm.survey_year")
+    years = [as_int(year) for (year,) in db.execute(years_query).fetchall()]
+    return {
+        "status": "success",
+        "scope": "national",
+        "years": years,
+        "vintage_years": vintage_years,
+        "metrics": metrics,
+        **_insights_payload(metrics, effective_targets(db)),
+    }
 
 
 @router.post("/admin/seed", summary="Admin-only: full dataset reseed (JWT required)")
 def seed_database(
     drop_existing: bool = True,
     include_cfsva: bool = True,
+    include_labour: bool = False,
+    include_vup: bool = False,
+    include_rdhs: bool = False,
     _admin: dict = Depends(get_current_admin),
 ):
-    """Regenerate the calibrated FinScope/EICV7 (+CFSVA) dataset."""
+    """Regenerate the calibrated FinScope/EICV7 (+CFSVA) dataset.
+
+    Newer survey layers are opt-in flags so legacy automations keep the exact
+    600-row contract; CLI seeders (seed_lfs.py / seed_vup.py / seed_rdhs.py)
+    remain the canonical path for a full stack reset.
+    """
     import seed_data
     from main import engine
 
@@ -203,21 +240,49 @@ def seed_database(
     regions, indicators, metrics, _ = seed_data.seed(engine, drop_existing=drop_existing)
 
     cfsva_seeded = bool(include_cfsva)
+    layer_status = {}
     if include_cfsva:
         try:
             import seed_cfsva
             seed_cfsva.seed_cfsva(engine)
-        except Exception as exc:  # CFSVA layer failure must not fail FinScope seeding
+            layer_status["cfsva"] = "seeded"
+        except Exception as exc:
             cfsva_seeded = False
+            layer_status["cfsva"] = f"failed: {exc}"
             return {
                 "status": "partial",
                 "seeded": {"regions": regions, "indicators": indicators, "metric_rows": metrics},
                 "cfsva": {"seeded": False, "error": str(exc)},
+                "layer_status": layer_status,
                 "note": "FinScope/EICV7 data re-seeded; CFSVA layer failed (see error).",
             }
+    extras = {}
+    if include_labour:
+        try:
+            import seed_lfs
+            seed_lfs.seed_lfs(engine)
+            extras["labour_lfs_2025"] = "seeded"
+        except Exception as exc:
+            extras["labour_lfs_2025"] = f"failed: {exc}"
+    if include_vup:
+        try:
+            import seed_vup
+            seed_vup.seed_vup(engine)
+            extras["vup_2025"] = "seeded"
+        except Exception as exc:
+            extras["vup_2025"] = f"failed: {exc}"
+    if include_rdhs:
+        try:
+            import seed_rdhs
+            seed_rdhs.seed_rdhs(engine)
+            extras["rdhs_2025"] = "seeded"
+        except Exception as exc:
+            extras["rdhs_2025"] = f"failed: {exc}"
     return {
         "status": "success",
         "seeded": {"regions": regions, "indicators": indicators, "metric_rows": metrics},
         "cfsva": {"seeded": cfsva_seeded},
-        "note": "Database re-seeded with calibrated FinScope 2024 / EICV7 + CFSVA 2024 data.",
+        "extra_layers": extras,
+        "layer_status": layer_status,
+        "note": "Database re-seeded with calibrated FinScope 2024 / EICV7 (+CFSVA) data.",
     }

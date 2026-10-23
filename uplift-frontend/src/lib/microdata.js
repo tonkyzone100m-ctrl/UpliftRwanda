@@ -1,7 +1,7 @@
 /**
  * Client-side parsing for ministerial microdata uploads.
  *
- * The API (python-multipart not installed) takes structured JSON rows:
+ * The API is JSON-only by contract; it takes structured JSON rows:
  *   POST /api/admin/microdata  { rows: [{ district, indicator_code, survey_year, value }] }
  * so the browser does the CSV parsing and cheap pre-validation, keeping the
  * server contract small and the per-row error report consistent.
@@ -78,6 +78,10 @@ export function parseMicrodataCsv(text) {
 
     if (!district || !indicator_code) {
       errors.push({ row: rowNumber, error: "Missing district or indicator_code." });
+      return;
+    }
+    if (district.length > 64 || indicator_code.length > 64) {
+      errors.push({ row: rowNumber, district, indicator_code, error: "district / indicator_code must be at most 64 characters." });
       return;
     }
     const survey_year = Number.parseInt(yearRaw, 10);

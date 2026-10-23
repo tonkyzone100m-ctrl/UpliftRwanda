@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict eZr2roWhK334AS7nGcEmo1wcbWMS3guZYxA4GJTOyTtue0ySvgaYqbG6YGAwTAj
+\restrict tOejDLb4nOUgvRnPkyIgyz4bJfk04slpbSQv3hIvNaPU6JhJH6VgNrmu0aXERLg
 
 -- Dumped from database version 18.4 (Debian 18.4-1)
 -- Dumped by pg_dump version 18.4 (Debian 18.4-1)
@@ -19,6 +19,39 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
+ALTER TABLE IF EXISTS ONLY public.survey_metrics DROP CONSTRAINT IF EXISTS survey_metrics_region_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.survey_metrics DROP CONSTRAINT IF EXISTS survey_metrics_indicator_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.district_cfsva_metrics DROP CONSTRAINT IF EXISTS district_cfsva_metrics_region_id_fkey;
+DROP INDEX IF EXISTS public.ix_survey_metrics_region_id;
+DROP INDEX IF EXISTS public.ix_survey_metrics_indicator_id;
+DROP INDEX IF EXISTS public.ix_regions_province;
+DROP INDEX IF EXISTS public.ix_indicators_category;
+DROP INDEX IF EXISTS public.ix_district_cfsva_metrics_region_id;
+ALTER TABLE IF EXISTS ONLY public.survey_metrics DROP CONSTRAINT IF EXISTS uq_metric_region_indicator_year;
+ALTER TABLE IF EXISTS ONLY public.district_cfsva_metrics DROP CONSTRAINT IF EXISTS uq_cfsva_region_year;
+ALTER TABLE IF EXISTS ONLY public.survey_metrics DROP CONSTRAINT IF EXISTS survey_metrics_pkey;
+ALTER TABLE IF EXISTS ONLY public.regions DROP CONSTRAINT IF EXISTS regions_pkey;
+ALTER TABLE IF EXISTS ONLY public.regions DROP CONSTRAINT IF EXISTS regions_district_key;
+ALTER TABLE IF EXISTS ONLY public.national_targets DROP CONSTRAINT IF EXISTS national_targets_target_key_key;
+ALTER TABLE IF EXISTS ONLY public.national_targets DROP CONSTRAINT IF EXISTS national_targets_pkey;
+ALTER TABLE IF EXISTS ONLY public.indicators DROP CONSTRAINT IF EXISTS indicators_pkey;
+ALTER TABLE IF EXISTS ONLY public.indicators DROP CONSTRAINT IF EXISTS indicators_indicator_code_key;
+ALTER TABLE IF EXISTS ONLY public.district_cfsva_metrics DROP CONSTRAINT IF EXISTS district_cfsva_metrics_pkey;
+ALTER TABLE IF EXISTS public.survey_metrics ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.regions ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.national_targets ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.indicators ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.district_cfsva_metrics ALTER COLUMN id DROP DEFAULT;
+DROP SEQUENCE IF EXISTS public.survey_metrics_id_seq;
+DROP TABLE IF EXISTS public.survey_metrics;
+DROP SEQUENCE IF EXISTS public.regions_id_seq;
+DROP TABLE IF EXISTS public.regions;
+DROP SEQUENCE IF EXISTS public.national_targets_id_seq;
+DROP TABLE IF EXISTS public.national_targets;
+DROP SEQUENCE IF EXISTS public.indicators_id_seq;
+DROP TABLE IF EXISTS public.indicators;
+DROP SEQUENCE IF EXISTS public.district_cfsva_metrics_id_seq;
+DROP TABLE IF EXISTS public.district_cfsva_metrics;
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -294,6 +327,11 @@ COPY public.indicators (id, indicator_code, indicator_name, category, unit, desc
 18	electricity_access	Electricity Access	Living Conditions	%	Households with electricity (grid or solar) (EICV7: 72%)
 19	improved_water	Improved Water Source Access	Living Conditions	%	Households accessing improved water sources (EICV7: 90%)
 20	modern_flooring	Modern Solid Flooring	Living Conditions	%	Households with solid modern flooring (cement/carpet) (EICV7; TUNABLE: 25%)
+21	employment_ratio	Employment-to-Population Ratio	Labour Force	%	Share of working-age adults that are employed (NISR LFS vintage)
+22	unemployment_rate	Unemployment Rate	Labour Force	%	Share of the labour force without work but available and searching (NISR LFS vintage)
+23	lfpr	Labour Force Participation Rate	Labour Force	%	Share of working-age adults in or actively seeking work (NISR LFS vintage)
+24	youth_unemployment	Youth Unemployment Rate	Labour Force	%	Share of the youth labour force (15-30) without work but available and searching (NISR RLFS 2025 vintage)
+25	labor_underutilization	Labour Underutilization Rate	Labour Force	%	Combined time-related underemployment + unemployed + potential labour force (NISR RLFS 2025 vintage)
 \.
 
 
@@ -948,6 +986,36 @@ COPY public.survey_metrics (id, region_id, indicator_id, survey_year, value) FRO
 599	30	19	2024	88.3
 600	30	20	2024	21.3
 509	26	9	2024	5.8
+601	1	21	2025	58.2
+602	1	22	2025	11
+603	1	23	2025	65.4
+604	2	21	2025	59
+605	2	22	2025	10.5
+606	2	23	2025	66
+607	3	21	2025	61.2
+608	3	22	2025	9.8
+609	3	23	2025	68
+610	16	21	2025	55
+640	1	24	2025	13.2
+641	1	25	2025	52.1
+645	2	24	2025	12.8
+646	2	25	2025	51
+650	3	24	2025	11.5
+651	3	25	2025	48.5
+611	16	22	2025	12.8
+612	16	23	2025	63.1
+655	16	24	2025	15
+656	16	25	2025	55.4
+613	11	21	2025	56.5
+614	11	22	2025	11.9
+615	11	23	2025	64.2
+660	11	24	2025	14.1
+661	11	25	2025	54
+616	24	21	2025	57.1
+617	24	22	2025	12
+618	24	23	2025	64.8
+665	24	24	2025	14.2
+666	24	25	2025	53.8
 \.
 
 
@@ -962,14 +1030,14 @@ SELECT pg_catalog.setval('public.district_cfsva_metrics_id_seq', 30, true);
 -- Name: indicators_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.indicators_id_seq', 20, true);
+SELECT pg_catalog.setval('public.indicators_id_seq', 25, true);
 
 
 --
 -- Name: national_targets_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.national_targets_id_seq', 2, true);
+SELECT pg_catalog.setval('public.national_targets_id_seq', 3, true);
 
 
 --
@@ -983,7 +1051,7 @@ SELECT pg_catalog.setval('public.regions_id_seq', 30, true);
 -- Name: survey_metrics_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.survey_metrics_id_seq', 600, true);
+SELECT pg_catalog.setval('public.survey_metrics_id_seq', 666, true);
 
 
 --
@@ -1129,5 +1197,5 @@ ALTER TABLE ONLY public.survey_metrics
 -- PostgreSQL database dump complete
 --
 
-\unrestrict eZr2roWhK334AS7nGcEmo1wcbWMS3guZYxA4GJTOyTtue0ySvgaYqbG6YGAwTAj
+\unrestrict tOejDLb4nOUgvRnPkyIgyz4bJfk04slpbSQv3hIvNaPU6JhJH6VgNrmu0aXERLg
 

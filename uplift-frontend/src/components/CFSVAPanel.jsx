@@ -70,13 +70,7 @@ export default function CFSVAPanel({ rows = [], stats = null }) {
       icon={Sprout}
       tone="emerald"
       title="Food Security & Nutrition · CFSVA 2024"
-      subtitle={
-        <>
-          Dedicated{" "}
-          <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-[10px]">district_food_security</code> layer —
-          separate from the FinScope/EICV7 datasets, same district keys
-        </>
-      }
+      subtitle="Who eats what, where — the dedicated district food-security layer"
       actions={
         <span className="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/15">
           {rows.length} rows · {new Set(rows.map((r) => r.indicator_code)).size} indicators
@@ -136,10 +130,15 @@ export default function CFSVAPanel({ rows = [], stats = null }) {
           </table>
         </div>
       )}
-      <p className="mt-3 text-[11px] text-slate-600">
-        Composite risk = FI% + stunting% + 0.2·(100 − FCS%/80) + 0.2·(100 − HDDS%/12) · weights align to
-        the NISR/IPC Priority Matrix precedent — tune before final publication.
-      </p>
+      <details className="group mt-3 rounded-lg border border-slate-200 bg-slate-50/60 px-4 py-2.5">
+        <summary className="cursor-pointer text-[11px] font-semibold text-slate-600">
+          How the composite risk score works
+        </summary>
+        <p className="mt-2 text-[11px] leading-relaxed text-slate-600">
+          Composite risk = FI% + stunting% + 0.2·(100 − FCS%/80) + 0.2·(100 − HDDS%/12). Weights align
+          to the NISR/IPC Priority Matrix precedent — tune before final publication.
+        </p>
+      </details>
     </SectionCard>
   );
 }

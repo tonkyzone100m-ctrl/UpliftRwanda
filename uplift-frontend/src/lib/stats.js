@@ -6,6 +6,8 @@ const defLookup = new Map(METRIC_DEFS.map((d) => [d.key, d]));
  * Groups flat metric rows into region objects.
  * Returns an array of { province, district, areaType, years, metrics, metricMap }
  * where each entry in `metrics` is tagged with the canonical metric def key.
+ * When several survey vintages exist for one (district, indicator), metricMap
+ * always resolves to the LATEST vintage so the dashboard never blends years.
  */
 export function buildRegions(rows) {
   const byRegion = new Map();
@@ -31,7 +33,12 @@ export function buildRegions(rows) {
     };
     region.years.add(row.survey_year);
     region.metrics.push(entry);
-    if (entry.defKey && !region.metricMap[entry.defKey]) region.metricMap[entry.defKey] = entry;
+    if (entry.defKey) {
+      const existing = region.metricMap[entry.defKey];
+      if (!existing || Number(entry.survey_year ?? -1) >= Number(existing.survey_year ?? -1)) {
+        region.metricMap[entry.defKey] = entry;
+      }
+    }
   }
   const regions = [...byRegion.values()].map((r) => ({
     ...r,
@@ -42,7 +49,7 @@ export function buildRegions(rows) {
   );
 }
 
-/** Aggregates canonical metrics across all districts and computes national stats. */
+/** Aggregates latest-vintage canonical metrics across all districts (no year blending). */
 export function computeNationalStats(regions) {
   if (!regions?.length) return null;
   const stats = {
@@ -59,7 +66,8 @@ export function computeNationalStats(regions) {
     for (const entry of region.metrics) {
       if (entry.category) stats.categories.add(entry.category);
       if (entry.survey_year != null) stats.years.add(entry.survey_year);
-      if (!entry.defKey) continue;
+    }
+    for (const entry of Object.values(region.metricMap)) {
       let bucket = stats.perMetric[entry.defKey];
       if (!bucket) {
         bucket = stats.perMetric[entry.defKey] = {

@@ -23,6 +23,20 @@ export async function fetchCfsvaMetrics({ signal } = {}) {
   }
 }
 
+/**
+ * RDHS 2025 wide district rows (/api/rdhs/districts) for the living-standards
+ * view. Returns null on any failure so the third data layer stays optional and
+ * the existing FinScope/EICV/CFSVA surfaces are never blocked by it.
+ */
+export async function fetchRdhsDistricts({ signal } = {}) {
+  try {
+    return await fetchRows(`${BASE_URL}/api/rdhs/districts`, { signal });
+  } catch (err) {
+    if (err?.name === "AbortError") throw err;
+    return null;
+  }
+}
+
 /** Internal: standard row-feed contract { status, count, data[] }. */
 async function fetchRows(path, { signal } = {}) {
   let res;
@@ -168,4 +182,139 @@ export async function runSimulation(payload = {}, { signal } = {}) {
     throw new ApiError("The simulation engine returned an unexpected response shape.");
   }
   return data;
+}
+
+/* ------------------------------------------------------------------ */
+/* LFS 2025 labour-market intelligence (Module A) — optional layers    */
+/* ------------------------------------------------------------------ */
+
+export async function fetchLabourDistricts({ signal } = {}) {
+  try {
+    return await fetchRows(`${BASE_URL}/api/labour/districts`, { signal });
+  } catch (err) {
+    if (err?.name === "AbortError") throw err;
+    return null;
+  }
+}
+
+export async function fetchLabourSummary({ signal } = {}) {
+  let res;
+  try {
+    res = await fetch(`${BASE_URL}/api/labour/summary`, { signal, headers: { Accept: "application/json" } });
+  } catch (err) {
+    if (err.name === "AbortError") throw err;
+    return null;
+  }
+  if (!res.ok) return null;
+  const payload = await res.json();
+  return payload.status === "success" ? payload : null;
+}
+
+export async function fetchLabourDisaggregation(dimension, { signal } = {}) {
+  let res;
+  try {
+    res = await fetch(
+      `${BASE_URL}/api/labour/disaggregation?dimension=${encodeURIComponent(dimension)}`,
+      { signal, headers: { Accept: "application/json" } },
+    );
+  } catch (err) {
+    if (err.name === "AbortError") throw err;
+    return null;
+  }
+  if (!res.ok) return null;
+  const payload = await res.json();
+  return payload.status === "success" ? payload : null;
+}
+
+/* ------------------------------------------------------------------ */
+/* VUP social-protection tracker (Module B) — optional layer           */
+/* ------------------------------------------------------------------ */
+
+export async function fetchVupDistricts({ signal } = {}) {
+  try {
+    return await fetchRows(`${BASE_URL}/api/vup/districts`, { signal });
+  } catch (err) {
+    if (err?.name === "AbortError") throw err;
+    return null;
+  }
+}
+
+export async function fetchVupSummary({ signal } = {}) {
+  let res;
+  try {
+    res = await fetch(`${BASE_URL}/api/vup/summary`, { signal, headers: { Accept: "application/json" } });
+  } catch (err) {
+    if (err.name === "AbortError") throw err;
+    return null;
+  }
+  if (!res.ok) return null;
+  const payload = await res.json();
+  return payload.status === "success" ? payload : null;
+}
+
+/* ------------------------------------------------------------------ */
+/* Financial inclusion + opportunity matchmaker (Module C)             */
+/* ------------------------------------------------------------------ */
+
+export async function fetchInclusionDistricts({ signal } = {}) {
+  try {
+    return await fetchRows(`${BASE_URL}/api/inclusion/districts`, { signal });
+  } catch (err) {
+    if (err?.name === "AbortError") throw err;
+    return null;
+  }
+}
+
+export async function fetchMatchmakerCatalog({ signal } = {}) {
+  let res;
+  try {
+    res = await fetch(`${BASE_URL}/api/matchmaker/catalog`, { signal, headers: { Accept: "application/json" } });
+  } catch (err) {
+    if (err.name === "AbortError") throw err;
+    return null;
+  }
+  if (!res.ok) return null;
+  const payload = await res.json();
+  return payload.status === "success" ? payload : null;
+}
+
+export async function postMatchmakerRecommendations(profile, { signal } = {}) {
+  let res;
+  try {
+    res = await fetch(`${BASE_URL}/api/matchmaker/recommendations`, {
+      method: "POST",
+      signal,
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify(profile),
+    });
+  } catch (err) {
+    if (err.name === "AbortError") throw err;
+    throw new ApiError(`Cannot reach the matchmaker at ${BASE_URL}.`, { cause: err });
+  }
+  if (!res.ok) {
+    let detail = res.statusText;
+    let code = null;
+    try {
+      const body = await res.json();
+      detail = body.detail ?? detail;
+      code = body.code ?? null;
+    } catch {
+      /* keep statusText */
+    }
+    throw new ApiError(detail || `API responded with ${res.status}`, { status: res.status, extra: { code } });
+  }
+  const payload = await res.json();
+  if (payload.status !== "success" || !Array.isArray(payload.results)) {
+    throw new ApiError("The matchmaker returned an unexpected response shape.");
+  }
+  return payload;
+}
+
+/* ------------------------------------------------------------------ */
+/* Executive policy brief (Module D) — direct download URLs            */
+/* ------------------------------------------------------------------ */
+
+export function briefDownloadUrl(districtRef, format = "pdf") {
+  const ref = districtRef ? encodeURIComponent(districtRef) : "national";
+  return `${BASE_URL}/api/brief/${ref}.${format}`;
 }

@@ -1,5 +1,10 @@
 import logging
 import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -82,6 +87,24 @@ def _ensure_seed_data(engine) -> None:
         logger.info("boot: CFSVA 2024 layer seeded (30 districts x 9 statistics)")
     except Exception as exc:  # CFSVA layer failure must not fail FinScope seeding
         logger.warning("boot: CFSVA 2024 layer failed to seed: %s", exc)
+    try:
+        import seed_rdhs
+        seed_rdhs.seed_rdhs(engine)
+        logger.info("boot: RDHS 2025 layer seeded (30 districts, household + birth recodes)")
+    except Exception as exc:  # RDHS layer failure must not fail core seeding
+        logger.warning("boot: RDHS 2025 layer failed to seed: %s", exc)
+    try:
+        import seed_lfs
+        seed_lfs.seed_lfs(engine)
+        logger.info("boot: LFS 2025 labour layer seeded (30 districts + demographic segments)")
+    except Exception as exc:  # LFS layer failure must not fail core seeding
+        logger.warning("boot: LFS 2025 layer failed to seed: %s", exc)
+    try:
+        import seed_vup
+        seed_vup.seed_vup(engine)
+        logger.info("boot: VUP 2025 layer seeded (30 districts x 5 components)")
+    except Exception as exc:  # VUP layer failure must not fail core seeding
+        logger.warning("boot: VUP 2025 layer failed to seed: %s", exc)
 
 
 try:
@@ -94,6 +117,13 @@ try:
         logger.warning(
             "auto-seed skipped (%s); run `python3 seed_data.py && python3 seed_cfsva.py` manually.", exc
         )
+    try:
+        from seed_data import ensure_indicator_catalog
+        lfs_added = ensure_indicator_catalog(engine)
+        if lfs_added:
+            logger.info("boot: registered %s Labour-Force-Survey catalog entries", lfs_added)
+    except Exception as exc:
+        logger.warning("boot: indicator catalog ensure skipped (%s)", exc)
     # Release the boot-time connection: SQLite test flows delete and recreate the
     # file at this path, and a pooled handle would keep serving the orphan inode
     # (reads succeed, writes raise readonly).
@@ -101,7 +131,7 @@ try:
 except SQLAlchemyError:
     logger.warning("national_targets bootstrap skipped (database unreachable at boot).")
 
-app = FastAPI(title="UpliftRwanda API", version="1.3")
+app = FastAPI(title="UpliftRwanda API", version="1.4")
 
 _cors_origins = [
     origin.strip()
@@ -137,6 +167,21 @@ app.include_router(simulation_router)
 
 from cfsva_api import router as cfsva_router  # noqa: E402
 app.include_router(cfsva_router)
+
+from rdhs_api import router as rdhs_router  # noqa: E402
+app.include_router(rdhs_router)
+
+from labour_api import router as labour_router  # noqa: E402
+app.include_router(labour_router)
+
+from vup_api import router as vup_router  # noqa: E402
+app.include_router(vup_router)
+
+from matchmaker_api import router as matchmaker_router  # noqa: E402
+app.include_router(matchmaker_router)
+
+from brief_api import router as brief_router  # noqa: E402
+app.include_router(brief_router)
 
 # ---------------------------------------------------------------------------
 # 2. Session lifecycle + JSON error mapping (internal failures never leak)
@@ -231,7 +276,7 @@ def get_survey_metrics(db: Session = Depends(get_db)):
         FROM survey_metrics sm
         JOIN regions r ON sm.region_id = r.id
         JOIN indicators i ON sm.indicator_id = i.id
-        ORDER BY r.province, r.district, i.indicator_code;
+        ORDER BY r.province, r.district, i.indicator_code, sm.survey_year DESC;
     """)
     rows = db.execute(query).fetchall()
 
@@ -246,5 +291,16 @@ def get_survey_metrics(db: Session = Depends(get_db)):
         "survey_year": as_int(row[7]),
         "value": as_float(row[8]),
     } for row in rows]
+    years = sorted({row["survey_year"] for row in metrics})
+    count_by_year: dict[str, int] = {}
+    for row in metrics:
+        key = str(row["survey_year"])
+        count_by_year[key] = count_by_year.get(key, 0) + 1
 
-    return {"status": "success", "count": len(metrics), "data": metrics}
+    return {
+        "status": "success",
+        "count": len(metrics),
+        "years": years,
+        "count_by_year": count_by_year,
+        "data": metrics,
+    }

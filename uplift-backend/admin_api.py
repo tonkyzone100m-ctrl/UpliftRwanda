@@ -15,6 +15,8 @@ from fastapi import Depends, APIRouter
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -138,9 +140,12 @@ def upload_microdata(
 ):
     """Ministerial microdata ingestion (JWT required).
 
-    Upsert semantics: one observation per (district, indicator_code, year) —
-    existing rows are overwritten (a data UPDATE), unknown tuples inserted.
-    Off-domain values are rejected per-indicator using the catalog unit.
+    Upsert semantics: one observation per (district, indicator_code, survey_year).
+    A single dynamic `INSERT ... ON CONFLICT ON CONSTRAINT
+    uq_metric_region_indicator_year DO UPDATE SET value = EXCLUDED.value`
+    statement covers both dialects (PostgreSQL prod, SQLite tests); duplicate
+    tuples inside one payload collapse, last value wins. Off-domain values are
+    rejected per-indicator using the catalog unit.
     """
     if not payload.rows:
         return JSONResponse(status_code=422, content={
@@ -177,37 +182,54 @@ def upload_microdata(
             continue
         prepared.append((region, indicator, row.survey_year, value))
 
-    inserted = updated = 0
-    try:
-        for region, indicator, year, value in prepared:
-            existing = db.execute(
-                select(SurveyMetric).where(
-                    SurveyMetric.region_id == region.id,
-                    SurveyMetric.indicator_id == indicator.id,
-                    SurveyMetric.survey_year == year,
-                )
-            ).scalar_one_or_none()
-            if existing:
-                existing.value = value
-                updated += 1
-            else:
-                db.add(SurveyMetric(region_id=region.id, indicator_id=indicator.id, survey_year=year, value=value))
-                inserted += 1
-        db.commit()
-    except SQLAlchemyError as exc:
-        db.rollback()
-        logger.error("Microdata upload failed for %s: %s", admin["username"], exc)
-        return JSONResponse(status_code=500, content={
-            "status": "error",
-            "code": "upload_persist_failed",
-            "detail": "The upload could not be committed; nothing was written.",
-        })
+    unique: dict[tuple[int, int, int], float] = {}
+    for region, indicator, year, value in prepared:
+        unique[(region.id, indicator.id, year)] = value
+    upsert_rows = [
+        {"region_id": rid, "indicator_id": iid, "survey_year": year, "value": value}
+        for (rid, iid, year), value in unique.items()
+    ]
+
+    existing_keys = set(
+        db.execute(
+            select(SurveyMetric.region_id, SurveyMetric.indicator_id, SurveyMetric.survey_year)
+        ).all()
+    )
+    inserted = sum(1 for key in unique if key not in existing_keys)
+    updated = len(unique) - inserted
+
+    if upsert_rows:
+        try:
+            con = db.connection()
+            insert_choice = pg_insert if con.dialect.name == "postgresql" else sqlite_insert
+            conflict_target = (
+                {"constraint": "uq_metric_region_indicator_year"}
+                if con.dialect.name == "postgresql"
+                else {"index_elements": ["region_id", "indicator_id", "survey_year"]}
+            )
+            base = insert_choice(SurveyMetric)
+            stmt = base.on_conflict_do_update(
+                **conflict_target,
+                set_={"value": base.excluded.value},
+            )
+            for start in range(0, len(upsert_rows), 500):
+                db.execute(stmt, upsert_rows[start : start + 500])
+            db.commit()
+        except SQLAlchemyError as exc:
+            db.rollback()
+            logger.error("Microdata upload failed for %s: %s", admin["username"], exc)
+            return JSONResponse(status_code=500, content={
+                "status": "error",
+                "code": "upload_persist_failed",
+                "detail": "The upload could not be committed; nothing was written.",
+            })
     logger.info(
         "Microdata upload by %s: %s inserted / %s updated / %s rejected",
         admin["username"], inserted, updated, len(errors),
     )
     return {
         "status": "success" if not errors else "partial",
+        "rows_processed": len(unique),
         "inserted": inserted,
         "updated": updated,
         "rejected": len(errors),

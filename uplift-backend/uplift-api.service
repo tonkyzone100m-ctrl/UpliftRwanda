@@ -1,0 +1,27 @@
+# systemd unit template — production install for the UpliftRwanda API.
+#
+# Install (fill in /ABSOLUTE/PATH first):
+#   1. Edit ExecStart/WorkingDirectory/EnvironmentFile to the real location.
+#   2. sudo cp uplift-api.service /etc/systemd/system/
+#      sudo systemctl daemon-reload
+#      sudo systemctl enable --now uplift-api.service
+#   3. Health check: curl http://127.0.0.1:8000/api/indicators
+
+[Unit]
+Description=UpliftRwanda NISR analytics API (FastAPI)
+After=network.target postgresql.service
+
+[Service]
+Type=exec
+WorkingDirectory=/ABSOLUTE/PATH/uplift-backend
+EnvironmentFile=/ABSOLUTE/PATH/uplift-backend/.env
+ExecStart=/ABSOLUTE/PATH/uplift-backend/venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8000 --workers 2 --proxy-headers
+Restart=on-failure
+RestartSec=3
+# Secrets stay in .env (mode 600 in git via .gitignore); never commit it.
+# Add "User=dedicated-service-user" here if not running as root under systemd.
+KillSignal=SIGTERM
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target

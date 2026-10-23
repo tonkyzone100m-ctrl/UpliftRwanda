@@ -223,6 +223,23 @@ INDICATOR_REGISTRY = [
 ]
 
 SURVEY_YEAR = 2024
+
+# 2025 Labour Force Survey extension: catalog-only entries (no baseline
+# survey_metrics rows), so the LFS codes pass the /api/admin/microdata
+# catalog lookup and appear on the dashboard as soon as a 2025 CSV lands.
+LFS_INDICATORS = [
+    ("employment_ratio", "Employment-to-Population Ratio", "Labour Force", "%",
+     "Share of working-age adults that are employed (NISR LFS vintage)"),
+    ("unemployment_rate", "Unemployment Rate", "Labour Force", "%",
+     "Share of the labour force without work but available and searching (NISR LFS vintage)"),
+    ("lfpr", "Labour Force Participation Rate", "Labour Force", "%",
+     "Share of working-age adults in or actively seeking work (NISR LFS vintage)"),
+    ("youth_unemployment", "Youth Unemployment Rate", "Labour Force", "%",
+     "Share of the youth labour force (15-30) without work but available and searching (NISR RLFS 2025 vintage)"),
+    ("labor_underutilization", "Labour Underutilization Rate", "Labour Force", "%",
+     "Combined time-related underemployment + unemployed + potential labour force (NISR RLFS 2025 vintage)"),
+]
+
 XVL_RATIO = 3.0 / 31.0    # extreme : vulnerable national ratio (3% / 31%)
 JITTER_AMPLITUDE = 1.2    # +-0.6 pp deterministic texture
 
@@ -370,6 +387,36 @@ def validation_report(series):
     return [(code, weighted_mean(values)) for code, values in series.items()]
 
 
+def ensure_indicator_catalog(engine) -> int:
+    """Register missing catalog rows (the LFS extension) into any database state."""
+    from sqlalchemy.orm import sessionmaker
+
+    from models import Indicator
+
+    factory = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+    session = factory()
+    added = 0
+    try:
+        known = {code for (code,) in session.query(Indicator.indicator_code).all()}
+        for code, name, category, unit, description in LFS_INDICATORS:
+            if code not in known:
+                session.add(Indicator(
+                    indicator_code=code,
+                    indicator_name=name,
+                    category=category,
+                    unit=unit,
+                    description=description,
+                ))
+                added += 1
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+    return added
+
+
 def seed(engine, drop_existing=False):
     from sqlalchemy.orm import sessionmaker
 
@@ -437,13 +484,14 @@ def seed(engine, drop_existing=False):
                 existing.value = row["value"]
 
         session.commit()
+        lfs_added = ensure_indicator_catalog(engine)
     except Exception:
         session.rollback()
         raise
     finally:
         session.close()
 
-    return len(regions), len(indicators), len(metrics), series
+    return len(regions), len(indicators) + lfs_added, len(metrics), series
 
 
 def print_summary(series, regions, indicators, metrics):

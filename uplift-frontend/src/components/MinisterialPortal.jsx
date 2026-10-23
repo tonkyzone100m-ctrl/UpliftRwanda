@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { ApiError, fetchTargets } from "../lib/api";
 import { parseMicrodataCsv } from "../lib/microdata";
-import { clearSession, getSession, getToken, loginAdmin, postAdminAction } from "../lib/auth";
+import { clearSession, getSession, getToken, loginAdmin, postAdminAction, storeSession } from "../lib/auth";
 
 export function PortalButton({ onOpen, session }) {
   const active = Boolean(session);
@@ -59,8 +59,8 @@ function expiryMinutes(expiresAt) {
 }
 
 export default function MinisterialPortal({ open, onClose, onTargetsChanged, onDataChanged }) {
-  const [status, setStatus] = useState("checking");
-  const [session, setSession] = useState(null);
+  const [status, setStatus] = useState(() => ((getSession() && getToken()) ? "console" : "login"));
+  const [session, setSession] = useState(() => getSession());
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [seedState, setSeedState] = useState({ touched: false, message: null });
@@ -71,22 +71,6 @@ export default function MinisterialPortal({ open, onClose, onTargetsChanged, onD
 
   useEffect(() => {
     if (!open) return;
-    // Portal state must reset each time the dialog opens (session lookup is
-    // synchronous sessionStorage, so a plain effect sync is the right tool).
-    ;(() => {
-      const stored = getSession();
-      if (stored && getToken()) {
-        setSession(stored);
-        setStatus("console");
-      } else {
-        setSession(null);
-        setStatus("login");
-      }
-      setError(null);
-      setNotice(null);
-      setSeedState({ touched: false, message: null });
-      setConfirmSeed(false);
-    })();
     const t = setTimeout(() => usernameRef.current?.focus(), 50);
     return () => clearTimeout(t);
   }, [open]);
@@ -114,7 +98,7 @@ export default function MinisterialPortal({ open, onClose, onTargetsChanged, onD
     setError(null);
     try {
       const payload = await loginAdmin(username, password);
-      sessionStorage.setItem("uplift_admin_username", payload.username);
+      storeSession(payload);
       setSession({ username: payload.username, expiresAt: payload.expires_at });
       setStatus("console");
     } catch (err) {
@@ -595,7 +579,7 @@ function MicrodataUploader({ onSessionExpired, onNotice, onDataChanged }) {
 
       {report?.kind === "upload" && report.result && (
         <div className="mt-2 rounded-lg bg-slate-100 px-3 py-2 text-[11px] leading-relaxed text-slate-600" role="status">
-          <b>{report.result.inserted}</b> inserted · <b>{report.result.updated}</b> updated · <b>{report.result.rejected}</b> rejected
+          <b>{report.result.rows_processed}</b> processed · <b>{report.result.inserted}</b> inserted · <b>{report.result.updated}</b> updated · <b>{report.result.rejected}</b> rejected
           {(report.result.errors?.length ?? 0) > 0 && (
             <ul className="mt-1 space-y-0.5 text-[10px] text-rose-600">
               {report.result.errors.slice(0, 5).map((e) => (

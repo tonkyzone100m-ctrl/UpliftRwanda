@@ -41,7 +41,7 @@ export default function SummaryCards({ stats, loading }) {
 
   const cards = [
     {
-      key: "inclusion",
+      id: "inclusion",
       icon: Wallet,
       accent: { bar: "bg-sky-500", chip: "bg-sky-50", iconText: "text-sky-600" },
       label: "Avg · Financial Inclusion",
@@ -49,7 +49,7 @@ export default function SummaryCards({ stats, loading }) {
       sub: `National mean across districts · NST2 benchmark ≥ 80%`,
     },
     {
-      key: "poverty",
+      id: "poverty",
       icon: Frown,
       accent: { bar: "bg-amber-400", chip: "bg-amber-50", iconText: "text-amber-600" },
       label: "Avg · Poverty Headcount",
@@ -57,7 +57,7 @@ export default function SummaryCards({ stats, loading }) {
       sub: `National mean across districts · guardrail < 30%`,
     },
     {
-      key: "social",
+      id: "social",
       icon: Landmark,
       accent: { bar: "bg-violet-500", chip: "bg-violet-50", iconText: "text-violet-600" },
       label: "Avg · Social Protection",
@@ -65,7 +65,7 @@ export default function SummaryCards({ stats, loading }) {
       sub: `National mean across districts · target ≥ 60%`,
     },
     {
-      key: "best-inclusion",
+      id: "best-inclusion",
       icon: Trophy,
       accent: { bar: "bg-emerald-500", chip: "bg-emerald-50", iconText: "text-emerald-600" },
       label: "Top Inclusion District",
@@ -73,7 +73,7 @@ export default function SummaryCards({ stats, loading }) {
       sub: bestInclusion ? `${bestInclusion.entry.district} · ${bestInclusion.entry.province}` : "No inclusion data yet",
     },
     {
-      key: "worst-poverty",
+      id: "worst-poverty",
       icon: AlertTriangle,
       accent: { bar: "bg-rose-500", chip: "bg-rose-50", iconText: "text-rose-600" },
       label: "Highest Poverty",
@@ -84,8 +84,8 @@ export default function SummaryCards({ stats, loading }) {
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-      {cards.map((c) => (
-        <Card key={c.key} {...c} loading={loading} />
+      {cards.map(({ id, ...card }) => (
+        <Card key={id} {...card} loading={loading} />
       ))}
     </div>
   );

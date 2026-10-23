@@ -63,7 +63,10 @@ def main_flow():
 
     r = client.get("/api/indicators")
     catalog = r.json()
-    check("GET /api/indicators -> 20 with benchmarks", r.status_code == 200 and catalog["count"] == 20
+    check("GET /api/indicators -> 25 incl. LFS extension, benchmarks intact", r.status_code == 200
+          and catalog["count"] == 25
+          and any(i["indicator_code"] == "lfpr" for i in catalog["data"])
+          and any(i["indicator_code"] == "youth_unemployment" for i in catalog["data"])
           and next(i for i in catalog["data"] if i["indicator_code"] == "financial_inclusion_rate")["official_benchmark"] == 96.0)
 
     r = client.get("/api/districts")
@@ -155,6 +158,7 @@ def auth_flow():
     body = r.json()
     check("POST /api/admin/seed without token -> 401", r.status_code == 401, r.text[:120])
     check("401 payload is clean JSON with code", body["detail"]["code"] == "not_authenticated")
+    check("401 advertises WWW-Authenticate: Bearer", r.headers.get("www-authenticate") == "Bearer", str(r.headers.get("www-authenticate")))
     auth.reset_rate_limiter()
 
     print("\n--- login flow ---")
@@ -266,14 +270,54 @@ def admin_mutations():
     check("upload contract: 1 inserted / 1 updated / 3 rejected",
           r.status_code == 200 and body["status"] == "partial"
           and body["inserted"] == 1 and body["updated"] == 1 and body["rejected"] == 3, r.text[:240])
+    check("rows_processed mirrors accepted tuples", body["rows_processed"] == 2, r.text[:120])
     after = client.get("/api/metrics").json()["count"]
     check("dashboard grew by exactly 1 row", after == before + 1, f"{before} -> {after}")
     karongi_poverty = next(row for row in client.get("/api/metrics").json()["data"]
                           if row["district"] == "Karongi" and row["indicator_code"] == "poverty_headcount"
                           and row["survey_year"] == 2024)
     check("upsert overwrote the 2024 value", karongi_poverty["value"] == 23.5, karongi_poverty)
+    r = client.post("/api/admin/microdata", headers=auth_header, json={"rows": [
+        {"district": "Karongi", "indicator_code": "poverty_headcount", "survey_year": 2024, "value": 20.0},
+        {"district": "Karongi", "indicator_code": "poverty_headcount", "survey_year": 2024, "value": 24.0},
+    ]})
+    body = r.json()
+    check("duplicate tuple in one payload collapses (last wins)", r.status_code == 200
+          and body["rows_processed"] == 1 and body["updated"] == 1, r.text[:160])
+    karongi_poverty = next(row for row in client.get("/api/metrics").json()["data"]
+                          if row["district"] == "Karongi" and row["indicator_code"] == "poverty_headcount"
+                          and row["survey_year"] == 2024)
+    check("duplicate last-wins value stored (24.0)", karongi_poverty["value"] == 24.0, karongi_poverty)
+    r = client.get("/api/metrics")
+    body = r.json()
+    check("metrics counts reflect all vintages (600x2024 + 1x2025)",
+          body["count"] == 601 and body["years"] == [2024, 2025]
+          and body["count_by_year"] == {"2024": 600, "2025": 1}, r.text[:200])
+    r = client.post("/api/admin/microdata", headers=auth_header, json={"rows": [
+        {"district": "Karongi", "indicator_code": "EMPLOYMENT_RATIO", "survey_year": 2025, "value": 44.9},
+        {"district": "Karongi", "indicator_code": "UNEMPLOYMENT_RATE", "survey_year": 2025, "value": 13.8},
+        {"district": "Karongi", "indicator_code": "LFPR", "survey_year": 2025, "value": 52.1},
+        {"district": "Gicumbi", "indicator_code": "unemployment_rate", "survey_year": 2025, "value": 12.9},
+    ]})
+    body = r.json()
+    check("2025 LFS codes ingest case-insensitively (4 inserted, 0 rejected)",
+          r.status_code == 200 and body["status"] == "success"
+          and body["rows_processed"] == 4 and body["inserted"] == 4 and body["rejected"] == 0, r.text[:200])
+    r = client.get("/api/metrics")
+    body = r.json()
+    check("metrics counts grow with LFS vintage (605 total, 5x2025)",
+          body["count"] == 605 and body["count_by_year"] == {"2024": 600, "2025": 5}, r.text[:200])
+    r = client.get("/api/districts/Karongi/insights")
+    body = r.json()
+    check("Karongi insights carry LFS indicators at 2025 vintage",
+          body["vintage_years"]["lfpr"] == 2025 and body["metrics"]["lfpr"] == 52.1
+          and body["metrics"].get("unemployment_rate") == 13.8, r.text[:180])
     r = client.post("/api/admin/microdata", headers=auth_header, json={"rows": []})
     check("empty upload -> 422", r.status_code == 422)
+    r = client.post("/api/admin/microdata", headers=auth_header, json={"rows": [
+        {"district": "X" * 65, "indicator_code": "poverty_headcount", "survey_year": 2025, "value": 10.0},
+    ]})
+    check("oversized field -> whole-request 422 (client pre-validates per-row)", r.status_code == 422, r.text[:140])
 
     auth.reset_rate_limiter()
 

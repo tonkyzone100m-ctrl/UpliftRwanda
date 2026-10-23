@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
 import { FileSearch2, RefreshCw } from "lucide-react";
 
 import Header from "./components/Header";
@@ -7,12 +7,25 @@ import SummaryCards from "./components/SummaryCards";
 import DistrictFocus from "./components/DistrictFocus";
 import PolicyInsights from "./components/PolicyInsights";
 import MetricsTable from "./components/MetricsTable";
-import DistrictMap from "./components/DistrictMap";
 import ScenarioLab from "./components/ScenarioLab";
 import CFSVAPanel from "./components/CFSVAPanel";
 import MinisterialPortal from "./components/MinisterialPortal";
+
+const DistrictMap = lazy(() => import("./components/DistrictMap"));
+const RDHSPanel = lazy(() => import("./components/RDHSPanel"));
+const LabourPanel = lazy(() => import("./components/LabourPanel"));
+const VupPanel = lazy(() => import("./components/VupPanel"));
+const InclusionPanel = lazy(() => import("./components/InclusionPanel"));
+const BriefCard = lazy(() => import("./components/BriefCard"));
 import { ErrorBanner, ErrorState, Footer, LoadingState } from "./components/Status";
-import { fetchCfsvaMetrics, fetchMetrics } from "./lib/api";
+import {
+  fetchCfsvaMetrics,
+  fetchInclusionDistricts,
+  fetchLabourDistricts,
+  fetchMetrics,
+  fetchRdhsDistricts,
+  fetchVupDistricts,
+} from "./lib/api";
 import { toDisplayRows, filterDisplayRows } from "./lib/filters";
 import { buildRegions, computeNationalStats } from "./lib/stats";
 import { getSession } from "./lib/auth";
@@ -48,26 +61,48 @@ function buildNationalRegion(stats) {
 const TABS = [
   { id: "dashboard", label: "National Intelligence Dashboard" },
   { id: "lab", label: "Policy Scenario Lab" },
+  { id: "rdhs", label: "RDHS 2025 Living Standards" },
+  { id: "labour", label: "Labour Market LFS 2025" },
+  { id: "vup", label: "VUP Social Protection" },
+  { id: "inclusion", label: "Inclusion & Matchmaker" },
   { id: "explorer", label: "District Explorer" },
 ];
-const TAB_BY_HASH = { "#dashboard": "dashboard", "#lab": "lab", "#explorer": "explorer" };
+const TAB_BY_HASH = {
+  "#dashboard": "dashboard",
+  "#lab": "lab",
+  "#rdhs": "rdhs",
+  "#labour": "labour",
+  "#vup": "vup",
+  "#inclusion": "inclusion",
+  "#explorer": "explorer",
+};
 
 export default function App() {
   const [status, setStatus] = useState("loading");
   const [rows, setRows] = useState([]);
   const [cfsvaRows, setCfsvaRows] = useState([]); // isolated CFSVA 2024 layer
+  const [rdhsRows, setRdhsRows] = useState([]);   // isolated RDHS 2025 layer
+  const [rdhsMounted, setRdhsMounted] = useState(
+    () => TAB_BY_HASH[window.location.hash] === "rdhs", // deep-link straight into the RDHS tab
+  ); // keep-filters-alive after first rdhs visit
+  const [labourRows, setLabourRows] = useState([]);   // isolated LFS 2025 layer (Module A)
+  const [vupRows, setVupRows] = useState([]);         // isolated VUP layer (Module B)
+  const [financeRows, setFinanceRows] = useState([]); // inclusion rows for the matchmaker (Module C)
+  const [districtNames, setDistrictNames] = useState([]); // brief/district pickers
   const [dataError, setDataError] = useState(null);
   const [refreshError, setRefreshError] = useState(null);
   const [updatedAt, setUpdatedAt] = useState(null);
   const [filters, setFilters] = useState({ query: "", categoryId: "all", district: "" });
   const [portalOpen, setPortalOpen] = useState(false);
+  const [portalEpoch, setPortalEpoch] = useState(0);
   const [portalSession, setPortalSession] = useState(syncPortalSession);
   const [targetsVersion, setTargetsVersion] = useState(0); // re-key PolicyInsights after ministerial target edits
   const [activeTab, setActiveTab] = useState(() => TAB_BY_HASH[window.location.hash] ?? "dashboard");
 
-  // Hash-synced SPA tabs (no reloads; deep links like #lab / #explorer work).
+  // Hash-synced SPA tabs (no reloads; deep links like #lab / #rdhs / #explorer work).
   const changeTab = (id) => {
     setActiveTab(id);
+    if (id === "rdhs") setRdhsMounted(true); // first visit mounts; later visits keep state
     try {
       history.replaceState(null, "", id === "dashboard" ? location.pathname + location.search : `#${id}`);
     } catch {
@@ -103,13 +138,51 @@ export default function App() {
     if (data) setCfsvaRows(data);
   }, []);
 
+  const fetchRdhs = useCallback(async (signal) => {
+    const data = await fetchRdhsDistricts({ signal });
+    if (data) setRdhsRows(data);
+  }, []);
+
+  const fetchLabour = useCallback(async (signal) => {
+    const data = await fetchLabourDistricts({ signal });
+    if (data) {
+      setLabourRows(data);
+      setDistrictNames(data.map((r) => r.district).sort());
+    }
+  }, []);
+
+  const fetchVup = useCallback(async (signal) => {
+    const data = await fetchVupDistricts({ signal });
+    if (data) setVupRows(data);
+  }, []);
+
+  const fetchFinance = useCallback(async (signal) => {
+    const data = await fetchInclusionDistricts({ signal });
+    if (data) setFinanceRows(data);
+  }, []);
+
   useEffect(() => {
     const controller = new AbortController();
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- canonical async data-fetch pattern
-    fetchData(controller.signal);
-    fetchCfsva(controller.signal); // isolated CFSVA 2024 layer (never blocks the FinScope view)
+    // Optional data layers must never crash the dashboard: swallow AbortError and
+    // downgrade any other failure to a console warning.
+    const runQuiet = (fetcher) => {
+      try {
+        Promise.resolve(fetcher()).catch((err) => {
+          if (err?.name === "AbortError") return; // unmount/refresh abort — expected
+          console.warn("Optional data layer failed to load:", err);
+        });
+      } catch (err) {
+        if (err?.name !== "AbortError") console.warn("Optional data layer failed to load:", err);
+      }
+    };
+    runQuiet(() => fetchData(controller.signal));
+    runQuiet(() => fetchCfsva(controller.signal)); // isolated CFSVA 2024 layer (never blocks the FinScope view)
+    runQuiet(() => fetchRdhs(controller.signal));  // isolated RDHS 2025 layer (never blocks the FinScope view)
+    runQuiet(() => fetchLabour(controller.signal)); // isolated LFS 2025 layer (never blocks the FinScope view)
+    runQuiet(() => fetchVup(controller.signal));    // isolated VUP layer (never blocks the FinScope view)
+    runQuiet(() => fetchFinance(controller.signal)); // inclusion rows for Module C
     return () => controller.abort();
-  }, [fetchData, fetchCfsva]);
+  }, [fetchData, fetchCfsva, fetchRdhs, fetchLabour, fetchVup, fetchFinance]);
 
   const allRows = useMemo(() => rows.concat(cfsvaRows), [rows, cfsvaRows]);
   const regions = useMemo(() => buildRegions(allRows), [allRows]);
@@ -131,18 +204,25 @@ export default function App() {
   const hasFilters = Boolean(filters.query || filters.categoryId !== "all" || filters.district);
 
   const portalProps = {
-    onOpenPortal: () => setPortalOpen(true),
+    onOpenPortal: () => {
+      setPortalOpen(true);
+      setPortalEpoch((e) => e + 1); // fresh portal state each open
+    },
     portalSession,
   };
   const portalModal = (
     <MinisterialPortal
+      key={portalEpoch}
       open={portalOpen}
       onClose={() => {
         setPortalOpen(false);
         setPortalSession(syncPortalSession());
       }}
       onTargetsChanged={() => setTargetsVersion((v) => v + 1)}
-      onDataChanged={() => fetchData()}
+      onDataChanged={() => {
+        fetchData();
+        fetchCfsva();
+      }}
     />
   );
 
@@ -217,18 +297,25 @@ export default function App() {
 
         {/* Tab 1 — National Intelligence Dashboard (kept mounted: instant tab switches,
             sliders/map state survive, Leaflet only ever initialises once). */}
-        <div className={activeTab === "dashboard" ? "space-y-4" : "hidden space-y-4"}>
+        <div className={activeTab === "dashboard" ? "space-y-6" : "hidden space-y-6"}>
           <SummaryCards stats={stats} />
 
           <div className="grid gap-4 xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] xl:items-start">
             <div className="isolate min-w-0">
-              <DistrictMap
-                regions={regions}
-                selectedDistrict={filters.district}
-                onSelectDistrict={(name) =>
-                  setFilters((f) => ({ ...f, district: f.district === name ? "" : name }))
+              <Suspense
+                fallback={
+                  <div className="h-96 animate-pulse rounded-xl bg-slate-200/70" role="status"
+                    aria-label="Loading district map" />
                 }
-              />
+              >
+                <DistrictMap
+                  regions={regions}
+                  selectedDistrict={filters.district}
+                  onSelectDistrict={(name) =>
+                    setFilters((f) => ({ ...f, district: f.district === name ? "" : name }))
+                  }
+                />
+              </Suspense>
             </div>
 
             <div className="min-w-0 space-y-4">
@@ -242,6 +329,16 @@ export default function App() {
             fallbackRegion={insightRegion}
             fallbackStats={stats}
           />
+
+          {/* Module D — one-click executive brief (national or focused district) */}
+          <Suspense
+            fallback={
+              <div className="h-24 animate-pulse rounded-2xl bg-slate-200/70" role="status"
+                aria-label="Loading brief card" />
+            }
+          >
+            <BriefCard districts={districtNames} selectedDistrict={filters.district} />
+          </Suspense>
         </div>
 
         {/* Tab 2 — Policy Scenario Lab */}
@@ -249,8 +346,76 @@ export default function App() {
           <ScenarioLab />
         </div>
 
-        {/* Tab 3 — District Explorer */}
-        <div className={activeTab === "explorer" ? "space-y-4" : "hidden space-y-4"}>
+        {/* Tab 3 — RDHS 2025 Living Standards (lazy; mounted on first visit) */}
+        {rdhsMounted && (
+          <div className={activeTab === "rdhs" ? "space-y-6" : "hidden space-y-6"}>
+            <Suspense
+              fallback={
+                <div className="h-96 animate-pulse rounded-2xl bg-slate-200/70" role="status"
+                  aria-label="Loading RDHS 2025 panel" />
+              }
+            >
+              <RDHSPanel
+                rows={rdhsRows}
+                selectedDistrict={filters.district}
+                onSelectDistrict={(name) =>
+                  setFilters((f) => ({ ...f, district: f.district === name ? "" : name }))
+                }
+              />
+            </Suspense>
+          </div>
+        )}
+
+        {/* Tab — LFS 2025 Labour Market (Module A; lazy) */}
+        <div className={activeTab === "labour" ? "space-y-6" : "hidden space-y-6"}>
+          <Suspense
+            fallback={
+              <div className="h-96 animate-pulse rounded-2xl bg-slate-200/70" role="status"
+                aria-label="Loading labour-market panel" />
+            }
+          >
+            <LabourPanel
+              rows={labourRows}
+              selectedDistrict={filters.district}
+              onSelectDistrict={(name) =>
+                setFilters((f) => ({ ...f, district: f.district === name ? "" : name }))
+              }
+            />
+          </Suspense>
+        </div>
+
+        {/* Tab — VUP Social Protection (Module B; lazy) */}
+        <div className={activeTab === "vup" ? "space-y-6" : "hidden space-y-6"}>
+          <Suspense
+            fallback={
+              <div className="h-96 animate-pulse rounded-2xl bg-slate-200/70" role="status"
+                aria-label="Loading VUP panel" />
+            }
+          >
+            <VupPanel
+              rows={vupRows}
+              selectedDistrict={filters.district}
+              onSelectDistrict={(name) =>
+                setFilters((f) => ({ ...f, district: f.district === name ? "" : name }))
+              }
+            />
+          </Suspense>
+        </div>
+
+        {/* Tab — Inclusion & Matchmaker (Module C; lazy) */}
+        <div className={activeTab === "inclusion" ? "space-y-6" : "hidden space-y-6"}>
+          <Suspense
+            fallback={
+              <div className="h-96 animate-pulse rounded-2xl bg-slate-200/70" role="status"
+                aria-label="Loading inclusion panel" />
+            }
+          >
+            <InclusionPanel rows={financeRows} selectedDistrict={filters.district} />
+          </Suspense>
+        </div>
+
+        {/* Tab 4 — District Explorer */}
+        <div className={activeTab === "explorer" ? "space-y-6" : "hidden space-y-6"}>
           <Filters
             regions={regions}
             displayRows={displayRows}

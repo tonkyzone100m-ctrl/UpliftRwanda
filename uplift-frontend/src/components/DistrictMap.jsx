@@ -1,12 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, GeoJSON } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { Map as MapIcon, Satellite } from "lucide-react";
 import { METRIC_DEFS, formatMetricValue } from "../lib/metrics";
 import SectionCard from "./Card";
+import MapFocus from "./MapFocus";
 
-const RW_CENTER = [-1.96, 29.87];
-const RW_BOUNDS = [[-2.85, 28.85], [-1.02, 30.95]];
+const RW_CENTER = [-1.9441, 29.8739];
+const RW_ZOOM = 9;
+const RW_BOUNDS = [[-2.85, 28.85], [-1.02, 30.95]]; // national envelope for selection resets
+const RW_PAN_BOUNDS = [[-3.1, 28.6], [-0.8, 31.2]]; // outer pan clamp (viewport can never leave Rwanda)
+const DISTRICT_FOCUS_MAX_ZOOM = 11;
 
 const GEO_URL = "/geo/rw-districts.geojson";
 
@@ -43,6 +47,15 @@ export default function DistrictMap({ regions = [], selectedDistrict = "", onSel
   const [hovered, setHovered] = useState(null);
   const mapRef = useRef(null);
   const shellRef = useRef(null);
+
+  // Bounds of a mounted district layer (any district-name casing).
+  const getDistrictBounds = useCallback((name) => {
+    const target = String(name).toLowerCase();
+    const match = (layerRef.current?.getLayers() ?? []).find(
+      (layer) => String(layer.feature?.properties?.district ?? "").toLowerCase() === target,
+    );
+    return typeof match?.getBounds === "function" ? match.getBounds() : null;
+  }, []);
 
   // The map lives inside a tabbed SPA view; when the tab re-shows the container
   // Leaflet still believes its size is 0, so re-measure on every resize event.
@@ -247,12 +260,21 @@ export default function DistrictMap({ regions = [], selectedDistrict = "", onSel
           <MapContainer
             ref={mapRef}
             center={RW_CENTER}
-            bounds={RW_BOUNDS}
+            zoom={RW_ZOOM}
+            minZoom={7}
+            maxBounds={RW_PAN_BOUNDS}
+            maxBoundsViscosity={1.0}
             zoomControl
             scrollWheelZoom={false}
             style={{ height: "100%", width: "100%" }}
             className="z-0"
           >
+            <MapFocus
+              selectedDistrict={selectedDistrict}
+              getDistrictBounds={getDistrictBounds}
+              nationalBounds={RW_BOUNDS}
+              maxZoom={DISTRICT_FOCUS_MAX_ZOOM}
+            />
             <GeoJSON
               ref={layerRef}
               data={geo}

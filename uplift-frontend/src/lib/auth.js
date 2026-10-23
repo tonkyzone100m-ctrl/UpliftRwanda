@@ -52,6 +52,14 @@ export function clearSession() {
   }
 }
 
+function redactedHeaders(headers = {}) {
+  const safe = Object.fromEntries(
+    Object.entries(headers).filter(([name]) => name.toLowerCase() !== "authorization")
+  );
+  const hasAuth = Object.keys(headers).some((name) => name.toLowerCase() === "authorization");
+  return { ...safe, Authorization: hasAuth ? "Bearer <redacted>" : "absent" };
+}
+
 async function request(path, options = {}) {
   let res;
   try {
@@ -63,14 +71,22 @@ async function request(path, options = {}) {
     if (err?.name === "AbortError") throw err;
     throw new ApiError(`Cannot reach the analytics API at ${BASE_URL}.`, { cause: err });
   }
-  let body = null;
+  let body;
+  let text = "";
   try {
-    const text = await res.text();
+    text = await res.text();
     body = text ? JSON.parse(text) : null;
   } catch {
-    /* non-JSON error body */
+    body = text ? { raw: text } : null;
   }
   if (!res.ok) {
+    console.error(
+      `[uplift-api] ${options.method ?? "GET"} ${path} -> ${res.status}`,
+      {
+        requestHeaders: redactedHeaders(options.headers),
+        responseText: text.slice(0, 480),
+      },
+    );
     const detail = body?.detail;
     const code = typeof detail === "object" ? detail?.code : null;
     const message =
@@ -97,10 +113,16 @@ export function fetchAdminSession(token) {
 /** POST a ministerial action; body is raw JSON (undefined keeps the legacy plain POST). */
 export function postAdminAction(path, body) {
   const token = getToken();
+  if (!token) {
+    throw new ApiError("Your ministerial session is not active. Sign in again before this action.", {
+      status: 401,
+      cause: "not_authenticated",
+    });
+  }
   return request(path, {
     method: "POST",
     headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : undefined),
+      Authorization: `Bearer ${token}`,
       ...(body !== undefined ? { "Content-Type": "application/json" } : undefined),
     },
     ...(body !== undefined ? { body: JSON.stringify(body) } : undefined),

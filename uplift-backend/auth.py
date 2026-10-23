@@ -185,9 +185,11 @@ def decode_access_token(token: str) -> dict:
 
 
 def get_current_admin(request: Request) -> dict:
+    where = f"{request.method} {request.url.path} from {_client_key(request)}"
     auth_header = request.headers.get("authorization", "")
     scheme, credentials = get_authorization_scheme_param(auth_header)
     if scheme.lower() != "bearer" or not credentials:
+        logger.warning("401 not_authenticated on %s (authorization scheme=%r)", where, scheme or "<missing>")
         raise HTTPException(
             status_code=401,
             detail={
@@ -195,23 +197,30 @@ def get_current_admin(request: Request) -> dict:
                 "code": "not_authenticated",
                 "detail": "Ministerial actions require an administrator session. Sign in first.",
             },
+            headers={"WWW-Authenticate": "Bearer"},
         )
     try:
         claims = decode_access_token(credentials)
     except jwt.ExpiredSignatureError:
+        logger.warning("401 token_expired on %s", where)
         raise HTTPException(
             status_code=401,
             detail={"status": "error", "code": "token_expired", "detail": "Session expired. Sign in again."},
+            headers={"WWW-Authenticate": "Bearer"},
         ) from None
     except jwt.InvalidTokenError as exc:
+        logger.warning("401 invalid_token (%s) on %s", type(exc).__name__, where)
         raise HTTPException(
             status_code=401,
             detail={"status": "error", "code": "invalid_token", "detail": "Invalid access token."},
+            headers={"WWW-Authenticate": "Bearer"},
         ) from exc
     if claims.get("kind") != _TOKEN_KIND or claims.get("sub") != CONFIG.admin_username:
+        logger.warning("401 invalid_token (wrong scope: kind=%r sub-match=%s) on %s", claims.get("kind"), claims.get("sub") == CONFIG.admin_username, where)
         raise HTTPException(
             status_code=401,
             detail={"status": "error", "code": "invalid_token", "detail": "Token is not valid for admin actions."},
+            headers={"WWW-Authenticate": "Bearer"},
         )
     return {"username": claims["sub"], "exp": claims["exp"]}
 

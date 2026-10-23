@@ -21,7 +21,14 @@ venv/
 *.dump
 *.sqlite
 *.db-journal
+db/database_backup.sql
 !db/database_snapshot.sql
+
+# ---- RDHS 2025 raw microdata (DHS redistribution rules; panel artifacts stay) ----
+# The district panel (rdhs_2025_district_panel.json/.csv) IS committed. Recreate
+# the raw recodes after NISR/DHS registration, then: python3 preprocess_rdhs.py
+db/rdhs/*.dta
+
 
 # ---- Node / Vite ----
 node_modules/

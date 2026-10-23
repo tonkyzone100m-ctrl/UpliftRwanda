@@ -163,3 +163,199 @@ class DistrictCfsvaMetrics(Base):
 
     def __repr__(self) -> str:  # pragma: no cover - debug aid
         return f"<DistrictCfsvaMetrics region={self.region_id} year={self.survey_year}>"
+
+
+class DistrictRdhsMetrics(Base):
+    """RDHS 2025 living-standards & poverty-dynamics layer (separate from CFSVA).
+
+    NON-DESTRUCTIVE integration, same pattern as DistrictCfsvaMetrics: a new
+    table keyed on the SAME `regions.id` values; no existing table/column is
+    altered. One row per district (unique on region + year), populated from
+    `db/rdhs/rdhs_2025_district_panel.json` by seed_rdhs.py. All metric columns
+    are nullable — microdata sparsity (e.g. tiny anthropometry samples) is
+    preserved as NULL, never as a fake zero.
+    """
+
+    __tablename__ = "district_rdhs_metrics"
+    __table_args__ = (
+        UniqueConstraint("region_id", "survey_year", name="uq_rdhs_region_year"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    region_id: Mapped[int] = mapped_column(
+        ForeignKey("regions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    survey_year: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    households: Mapped[int] = mapped_column(Integer, nullable=False)
+    births: Mapped[int] = mapped_column(Integer, nullable=False)
+    children_measured: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    # Household living standards & financial inclusion (weighted shares)
+    electricity_pct: Mapped[float] = mapped_column(Float, nullable=True)
+    improved_water_pct: Mapped[float] = mapped_column(Float, nullable=True)
+    improved_sanitation_pct: Mapped[float] = mapped_column(Float, nullable=True)
+    bank_account_pct: Mapped[float] = mapped_column(Float, nullable=True)
+    mobile_fintech_pct: Mapped[float] = mapped_column(Float, nullable=True)
+    mobile_phone_pct: Mapped[float] = mapped_column(Float, nullable=True)
+    insurance_pct: Mapped[float] = mapped_column(Float, nullable=True)
+    urban_pct: Mapped[float] = mapped_column(Float, nullable=True)
+
+    # Wealth distribution (quintile shares of hv270 + derived inequality cuts)
+    wealth_q1: Mapped[float] = mapped_column(Float, nullable=True)
+    wealth_q2: Mapped[float] = mapped_column(Float, nullable=True)
+    wealth_q3: Mapped[float] = mapped_column(Float, nullable=True)
+    wealth_q4: Mapped[float] = mapped_column(Float, nullable=True)
+    wealth_q5: Mapped[float] = mapped_column(Float, nullable=True)
+    wealth_p20_pct: Mapped[float] = mapped_column(Float, nullable=True)     # poorest-quintile share
+    wealth_p40_pct: Mapped[float] = mapped_column(Float, nullable=True)     # bottom-40% share
+    wealth_p60p_pct: Mapped[float] = mapped_column(Float, nullable=True)    # top-60% share
+
+    # Birth-history mortality (per 1,000 live births, complete-exposure cohort)
+    imr_per_1000: Mapped[float] = mapped_column(Float, nullable=True)
+    u5mr_per_1000: Mapped[float] = mapped_column(Float, nullable=True)
+
+    # Child anthropometry (BR children <60 months, WHO z-scores <-2 SD)
+    stunting_pct: Mapped[float] = mapped_column(Float, nullable=True)
+    underweight_pct: Mapped[float] = mapped_column(Float, nullable=True)
+    wasting_pct: Mapped[float] = mapped_column(Float, nullable=True)
+
+    def __repr__(self) -> str:  # pragma: no cover - debug aid
+        return f"<DistrictRdhsMetrics region={self.region_id} year={self.survey_year}>"
+
+
+class DistrictLfsMetrics(Base):
+    """LFS 2025 labour-market layer (wide panel) — NON-DESTRUCTIVE integration.
+
+    Same additive pattern as CFSVA/RDHS: a new table keyed on the SAME
+    `regions.id` values; no existing table/column is altered. One row per
+    district per survey year (unique on region + year), populated by
+    seed_lfs.py and calibrated so population-weighted national means land on
+    the official RLFS 2025 anchors (unemployment 12.4%, youth NEET 24.5%,
+    LFPR gender gap 14.3 pp).
+
+    Headline columns cover the district aggregates; male/female and education
+    (General vs TVET) and disability splits let the dashboard honour gender /
+    education / disability filters without a self-join.
+    """
+
+    __tablename__ = "district_lfs_metrics"
+    __table_args__ = (
+        UniqueConstraint("region_id", "survey_year", name="uq_lfs_region_year"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    region_id: Mapped[int] = mapped_column(
+        ForeignKey("regions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    survey_year: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    # --- headline (all working-age population unless noted) ---
+    unemployment_rate: Mapped[float] = mapped_column(Float, nullable=False)          # official anchor 12.4
+    employment_ratio: Mapped[float] = mapped_column(Float, nullable=False)           # employed / working-age
+    labor_underutilization_rate: Mapped[float] = mapped_column(Float, nullable=False)  # LU3 composite
+    lfpr: Mapped[float] = mapped_column(Float, nullable=False)                       # participation 16+
+    inactivity_rate: Mapped[float] = mapped_column(Float, nullable=False)            # out-of-labour-force share
+    youth_unemployment_rate: Mapped[float] = mapped_column(Float, nullable=False)    # 16-30 labour force (CSV baseline)
+    youth_neet_rate: Mapped[float] = mapped_column(Float, nullable=False)            # 16-30: not in employment, education or training (anchor 24.5)
+    informal_employment_rate: Mapped[float] = mapped_column(Float, nullable=False)   # informal share of employment
+    time_underemployment_rate: Mapped[float] = mapped_column(Float, nullable=False)  # time-related underemployment
+
+    # --- gender split: male minus female LFPR gap (anchor 14.3 pp) ---
+    lfpr_male: Mapped[float] = mapped_column(Float, nullable=False)
+    lfpr_female: Mapped[float] = mapped_column(Float, nullable=False)
+    unemployment_rate_male: Mapped[float] = mapped_column(Float, nullable=False)
+    unemployment_rate_female: Mapped[float] = mapped_column(Float, nullable=False)
+    youth_neet_male: Mapped[float] = mapped_column(Float, nullable=True)
+    youth_neet_female: Mapped[float] = mapped_column(Float, nullable=True)
+
+    # --- education outcome split: TVET graduates vs general-stream leavers ---
+    tvet_unemployment_rate: Mapped[float] = mapped_column(Float, nullable=False)
+    general_education_unemployment_rate: Mapped[float] = mapped_column(Float, nullable=False)
+
+    # --- disability-status split ---
+    disability_lfpr: Mapped[float] = mapped_column(Float, nullable=False)
+    disability_unemployment_rate: Mapped[float] = mapped_column(Float, nullable=False)
+
+    def __repr__(self) -> str:  # pragma: no cover - debug aid
+        return f"<DistrictLfsMetrics region={self.region_id} year={self.survey_year}>"
+
+
+class DistrictLfsSegment(Base):
+    """LFS 2025 disaggregation (long/tidy): demand-side filters.
+
+    One row per (district, year, dimension, segment, indicator). Dimensions:
+      gender     -> female | male
+      education  -> primary | secondary_general | tvet | tertiary
+      disability -> with_disability | without_disability
+    Indicators (values in %):
+      unemployment | lfpr | employment_ratio (+ neet for gender segments)
+    """
+
+    __tablename__ = "district_lfs_segments"
+    __table_args__ = (
+        UniqueConstraint(
+            "region_id", "survey_year", "dimension", "segment", "indicator",
+            name="uq_lfs_segment_row",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    region_id: Mapped[int] = mapped_column(
+        ForeignKey("regions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    survey_year: Mapped[int] = mapped_column(Integer, nullable=False)
+    dimension: Mapped[str] = mapped_column(String(24), nullable=False, index=True)
+    segment: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    indicator: Mapped[str] = mapped_column(String(24), nullable=False, index=True)
+    value: Mapped[float] = mapped_column(Float, nullable=False)
+
+    def __repr__(self) -> str:  # pragma: no cover - debug aid
+        return f"<DistrictLfsSegment {self.dimension}/{self.segment}/{self.indicator}={self.value}>"
+
+
+class DistrictVupMetrics(Base):
+    """VUP (Vision Umurenge Programme) beneficiary & operations layer.
+
+    NON-DESTRUCTIVE additive table keyed on the SAME `regions.id`. One row per
+    district per survey year (EICV7 VUP 2025 module + programme MIS vintage),
+    populated by seed_vup.py.
+
+    Columns carry the five VUP components as DIRECT beneficiary headcounts
+    (Direct Support, Classic Public Works, Expanded Public Works,
+    Nutrition-Sensitive Direct Support, Financial Services), the poverty
+    profile among beneficiaries (official EICV7 VUP anchor: 41% overall
+    poverty), and operational-efficiency shares (payment timeliness, digital
+    disbursement channels — Umurenge SACCO / mobile money / cash).
+    """
+
+    __tablename__ = "district_vup_metrics"
+    __table_args__ = (
+        UniqueConstraint("region_id", "survey_year", name="uq_vup_region_year"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    region_id: Mapped[int] = mapped_column(
+        ForeignKey("regions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    survey_year: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    # --- component caseloads (annual beneficiaries, headcount) ---
+    beneficiaries_ds: Mapped[int] = mapped_column(Integer, nullable=False)    # Direct Support
+    beneficiaries_cpw: Mapped[int] = mapped_column(Integer, nullable=False)   # Classic Public Works
+    beneficiaries_epw: Mapped[int] = mapped_column(Integer, nullable=False)   # Expanded Public Works
+    beneficiaries_nsds: Mapped[int] = mapped_column(Integer, nullable=False)  # Nutrition-Sensitive Direct Support
+    beneficiaries_fs: Mapped[int] = mapped_column(Integer, nullable=False)    # Financial Services
+
+    # --- poverty profile among VUP beneficiaries (official anchor: 41%) ---
+    poverty_rate_among_beneficiaries: Mapped[float] = mapped_column(Float, nullable=False)
+    extreme_among_beneficiaries: Mapped[float] = mapped_column(Float, nullable=False)  # extreme poor share (moderate = rate - extreme)
+
+    # --- operational efficiency (programme-side, modelled) ---
+    payment_timeliness_pct: Mapped[float] = mapped_column(Float, nullable=False)  # paid within the statutory window
+    sacco_disbursement_pct: Mapped[float] = mapped_column(Float, nullable=False)  # Umurenge SACCO channel share
+    momo_disbursement_pct: Mapped[float] = mapped_column(Float, nullable=False)   # Mobile Money channel share
+    cash_disbursement_pct: Mapped[float] = mapped_column(Float, nullable=False)   # cash-in-transit share (sacco+momo+cash = 100)
+
+    def __repr__(self) -> str:  # pragma: no cover - debug aid
+        return f"<DistrictVupMetrics region={self.region_id} year={self.survey_year}>"

@@ -84,7 +84,9 @@ function TabSwitcher({ tabs, activeTab, onChange }) {
 }
 
 export default function Header({ regionCount, stats, dataPoints = 0, tabs, activeTab, onTabChange, onOpenPortal, portalSession }) {
-  const year = stats?.years?.length ? stats.years[stats.years.length - 1] : null;
+  const yearLabel = stats?.years?.length
+    ? stats.years.length > 3 ? `${stats.years[0]}–${stats.years[stats.years.length - 1]}` : stats.years.join(" · ")
+    : null;
   return (
     <>
       <div className="sticky top-0 z-40 border-b border-slate-800 bg-slate-900 text-slate-100 shadow-lg">
@@ -140,10 +142,10 @@ export default function Header({ regionCount, stats, dataPoints = 0, tabs, activ
                   Public Data · No sign-in required
                 </span>
               </div>
-              <p className="mt-2 max-w-2xl text-sm text-slate-300 sm:text-base">
-                One platform for Rwanda's district-level financial inclusion, poverty dynamics and food
-                security evidence — 870 calibrated observations serving Vision 2050 and NST2 decisions.
-              </p>
+                <p className="mt-2 max-w-2xl text-sm text-slate-300 sm:text-base">
+                  District-level evidence on financial inclusion, food security, labour, VUP and living
+                  standards — one dashboard, zero sign-in.
+                </p>
             </div>
 
             <dl className="grid w-full gap-3 sm:w-auto sm:grid-cols-3">
@@ -167,9 +169,9 @@ export default function Header({ regionCount, stats, dataPoints = 0, tabs, activ
               <HeroStat
                 icon={Hexagon}
                 label="Survey vintage"
-                value={year ?? null}
-                loading={!year}
-                support="FinScope · EICV7 · CFSVA"
+                value={yearLabel ?? null}
+                loading={!yearLabel}
+                support="FinScope · EICV7 · CFSVA · LFS"
                 accent="border-l-yellow-400"
               />
             </dl>
