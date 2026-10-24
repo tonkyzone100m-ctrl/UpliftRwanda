@@ -88,7 +88,7 @@ export default function Header({ regionCount, stats, dataPoints = 0, tabs, activ
         <div aria-hidden="true" className="h-0.5 bg-gradient-to-r from-sky-500 via-yellow-400 to-emerald-600" />
         <nav
           aria-label="Top navigation"
-          className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-6 lg:px-8"
+          className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-3 py-2.5 sm:px-6 lg:px-8"
         >
           <div className="flex min-w-0 items-center gap-3">
             <UpliftLogoNISR />
@@ -121,7 +121,7 @@ export default function Header({ regionCount, stats, dataPoints = 0, tabs, activ
           aria-hidden="true"
           className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-sky-500/10 blur-3xl"
         />
-        <div className="relative mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <div className="relative mx-auto max-w-7xl px-3 py-6 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-end justify-between gap-5">
             <div className="min-w-0">
               <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-sky-300">

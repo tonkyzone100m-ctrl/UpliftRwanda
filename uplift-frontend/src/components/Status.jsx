@@ -63,7 +63,7 @@ export function ErrorBanner({ error, onDismiss }) {
 export function Footer({ stats }) {
   return (
     <footer className="mt-12 border-t border-slate-200 bg-white">
-      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-8 text-center sm:flex-row sm:px-6 sm:text-left lg:px-8">
+      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-3 py-8 text-center sm:flex-row sm:px-6 sm:text-left lg:px-8">
         <div className="flex items-center gap-2.5 text-xs text-slate-500">
           <MapPin className="h-4 w-4 text-emerald-600" aria-hidden="true" />
           <span>

@@ -234,9 +234,9 @@ export default function App() {
 
   if (status === "loading") {
     return (
-      <div className="flex min-h-screen flex-col bg-slate-100">
+      <div className="flex min-h-screen w-full max-w-full flex-col overflow-x-clip bg-slate-100">
         <Header regionCount={0} stats={null} dataPoints={0} {...portalProps} />
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
+        <main className="mx-auto w-full max-w-7xl flex-1 px-3 py-6 sm:px-6 lg:px-8">
           <LoadingState />
         </main>
         {portalModal}
@@ -247,9 +247,9 @@ export default function App() {
   if (status === "error" || regions.length === 0) {
     const noData = status === "ready";
     return (
-      <div className="flex min-h-screen flex-col bg-slate-100">
+      <div className="flex min-h-screen w-full max-w-full flex-col overflow-x-clip bg-slate-100">
         <Header regionCount={0} stats={null} dataPoints={0} {...portalProps} />
-        <main className="mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-10 sm:px-6 lg:px-8">
+        <main className="mx-auto w-full max-w-7xl flex-1 space-y-6 px-3 py-10 sm:px-6 lg:px-8">
           {noData ? (
             <div
               role="status"
@@ -287,7 +287,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-100">
+    <div className="flex min-h-screen w-full max-w-full flex-col overflow-x-clip bg-slate-100">
       <Header
         regionCount={regions.length}
         stats={stats}
@@ -298,7 +298,7 @@ export default function App() {
         {...portalProps}
       />
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-3 py-6 sm:px-6 lg:px-8">
         {refreshError && <ErrorBanner error={refreshError} onDismiss={() => setRefreshError(null)} />}
 
         {/* Tab 1 — National Intelligence Dashboard (kept mounted: instant tab switches,

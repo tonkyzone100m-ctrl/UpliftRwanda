@@ -10,6 +10,7 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: clip; /* no sideways page scroll on phones */
 }
 
 body {
