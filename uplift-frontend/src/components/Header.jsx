@@ -53,7 +53,7 @@ function TabSwitcher({ tabs, activeTab, onChange }) {
     <div
       role="tablist"
       aria-label="Dashboard views"
-      className="inline-flex min-w-0 items-center gap-1 overflow-x-auto rounded-xl border border-white/10 bg-white/[0.06] p-1"
+      className="flex w-full max-w-full flex-wrap items-center gap-2 overflow-x-auto rounded-xl border border-white/10 bg-white/[0.06] p-1"
     >
       {tabs.map((tab) => {
         const active = tab.id === activeTab;
@@ -102,7 +102,7 @@ export default function Header({ regionCount, stats, dataPoints = 0, tabs, activ
           </div>
 
           {tabs && tabs.length > 0 && (
-            <div className="order-3 w-full justify-center sm:order-2 sm:w-auto">
+            <div className="order-3 w-full sm:order-2 sm:w-auto sm:min-w-0">
               <TabSwitcher tabs={tabs} activeTab={activeTab} onChange={onTabChange} />
             </div>
           )}
