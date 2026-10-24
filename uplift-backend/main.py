@@ -22,7 +22,7 @@ logger = logging.getLogger("uplift_api")
 # ---------------------------------------------------------------------------
 DB_NAME = os.getenv("DB_NAME", "uplift_rwanda_db")
 DB_USER = os.getenv("DB_USER", "it-eng")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "uplift")  # Set password if required, or leave blank for local trust/peer
+DB_PASSWORD = os.getenv("DB_PASSWORD", "uplift")  # local default; deployments override via env
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = os.getenv("DB_PORT", "5432")
 

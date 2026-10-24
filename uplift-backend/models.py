@@ -148,18 +148,18 @@ class DistrictCfsvaMetrics(Base):
     survey_year: Mapped[int] = mapped_column(Integer, nullable=False)
 
     # Food security & consumption (WFP/IPC scale)
-    fies_moderate_severe_pct: Mapped[float] = mapped_column(Float, nullable=False)   # moderate+severe food insecurity, %
-    fies_severe_pct: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)  # severely food insecure, %
+    fies_moderate_severe_pct: Mapped[float] = mapped_column(Float, nullable=False)
+    fies_severe_pct: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
     food_consumption_score: Mapped[float] = mapped_column(Float, nullable=False)    # mean FCS, 0-112 pts
-    fcs_poor_pct: Mapped[float] = mapped_column(Float, nullable=False)             # share with poor FCS, %
+    fcs_poor_pct: Mapped[float] = mapped_column(Float, nullable=False)
     # Dietary diversity
     hdds: Mapped[float] = mapped_column(Float, nullable=False)                     # mean HDDS, 0-12
     # Malnutrition (children under 5)
     stunting_pct: Mapped[float] = mapped_column(Float, nullable=False)
     wasting_pct: Mapped[float] = mapped_column(Float, nullable=False)
     # Agricultural vulnerability / stress
-    rcsi: Mapped[float] = mapped_column(Float, nullable=False)                     # reduced coping strategies index
-    harvest_loss_pct: Mapped[float] = mapped_column(Float, nullable=False)         # hh with >=1 harvest loss, %
+    rcsi: Mapped[float] = mapped_column(Float, nullable=False)                     # reduced coping strategies index (lower = better)
+    harvest_loss_pct: Mapped[float] = mapped_column(Float, nullable=False)
 
     def __repr__(self) -> str:  # pragma: no cover - debug aid
         return f"<DistrictCfsvaMetrics region={self.region_id} year={self.survey_year}>"
@@ -258,7 +258,7 @@ class DistrictLfsMetrics(Base):
     inactivity_rate: Mapped[float] = mapped_column(Float, nullable=False)            # out-of-labour-force share
     youth_unemployment_rate: Mapped[float] = mapped_column(Float, nullable=False)    # 16-30 labour force (CSV baseline)
     youth_neet_rate: Mapped[float] = mapped_column(Float, nullable=False)            # 16-30: not in employment, education or training (anchor 24.5)
-    informal_employment_rate: Mapped[float] = mapped_column(Float, nullable=False)   # informal share of employment
+    informal_employment_rate: Mapped[float] = mapped_column(Float, nullable=False)
     time_underemployment_rate: Mapped[float] = mapped_column(Float, nullable=False)  # time-related underemployment
 
     # --- gender split: male minus female LFPR gap (anchor 14.3 pp) ---

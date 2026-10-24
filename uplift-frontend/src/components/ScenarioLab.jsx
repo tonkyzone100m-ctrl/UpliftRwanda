@@ -85,7 +85,7 @@ export default function ScenarioLab() {
       }
     >
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(260px,340px)_1fr]">
-        {/* ---------------- levers ---------------- */}
+        {/* levers */}
         <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
           <label className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-slate-600">
             <input
@@ -160,7 +160,7 @@ export default function ScenarioLab() {
           </button>
         </div>
 
-        {/* ---------------- results ---------------- */}
+        {/* results */}
         <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
           {busy && !result && (
             <div className="flex items-center gap-2 py-10 text-xs text-slate-500" role="status">

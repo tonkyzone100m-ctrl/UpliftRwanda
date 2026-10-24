@@ -6,7 +6,7 @@ NON-DESTRUCTIVE companion to seed_data.py. Fills:
   * district_lfs_segments  — long/tidy disaggregation (gender / education /
                              disability x indicator)
 and completes the official 2025 survey_metrics vintage for the 5 canonical
-LFS indicator codes across ALL 30 districts (the ministerial ministerial CSV
+LFS indicator codes across ALL 30 districts (the ministerial CSV
 ingest covered only 6 districts, so /api/metrics vintages become consistent —
 upserting, never destructive: no existing row is deleted).
 
@@ -58,18 +58,16 @@ ANCHORS = {
     # OFFICIAL-edit microdata sample vintage (MEAL 2025 ministerial ingest):
     # the six ingested districts averaged ~52.7 — kept as the panel-scale alias.
     "labor_underutilization_rate": 52.6,
-    "informal_employment_rate": 85.6,   # informal share of employment (TUNABLE)
-    "time_underemployment_rate": 5.1,   # time-related underemployment (TUNABLE)
-    "youth_unemployment_rate": 13.9,    # youth labour-force unemployment (TUNABLE)
-    "lfpr": 66.3,                       # participation 16+ (TUNABLE)
-    # Gender unemployment gap: female unemployment exceeds male (TUNABLE pp)
-    "unemployment_gender_gap_pp": 3.6,
+    "informal_employment_rate": 85.6,   # TUNABLE
+    "time_underemployment_rate": 5.1,   # TUNABLE
+    "youth_unemployment_rate": 13.9,    # TUNABLE
+    "lfpr": 66.3,                       # ages 16+ (TUNABLE)
+    "unemployment_gender_gap_pp": 3.6,  # female exceeds male (TUNABLE pp)
     # Education outcomes: TVET graduates outperform general-stream leavers
     "tvet_unemployment_rate": 7.9,
     "primary_unemployment_rate": 9.8,
     "secondary_general_unemployment_rate": 16.8,
     "tertiary_unemployment_rate": 5.5,
-    # Participation by education segment
     "lfpr_primary": 62.6,
     "lfpr_secondary_general": 57.9,
     "lfpr_tvet": 72.4,
@@ -79,8 +77,7 @@ ANCHORS = {
     "without_disability_lfpr": 67.1,
     "disability_unemployment_rate": 18.9,
     "without_disability_unemployment_rate": 12.0,
-    # Youth NEET gender gap: female NEET exceeds male (TUNABLE pp)
-    "youth_neet_gender_gap_pp": 4.2,
+    "youth_neet_gender_gap_pp": 4.2,    # female exceeds male (TUNABLE pp)
 }
 
 BOUNDS = {

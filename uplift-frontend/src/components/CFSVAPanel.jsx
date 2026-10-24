@@ -77,7 +77,7 @@ export default function CFSVAPanel({ rows = [], stats = null }) {
         </span>
       }
     >
-      <div className="grid auto-rows-fr grid-cols-2 gap-3">
+      <div className="grid auto-rows-fr grid-cols-1 gap-3 sm:grid-cols-2">
         {tiles.map((tile) => {
           const Icon = tile.icon;
           return (

@@ -161,7 +161,7 @@ export default function VupPanel({
 
   return (
     <div className="space-y-4">
-      <section aria-label="VUP headline indicators" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <section aria-label="VUP headline indicators" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {KPI_TILES.map((tile) => {
           const Icon = tile.icon;
           return (

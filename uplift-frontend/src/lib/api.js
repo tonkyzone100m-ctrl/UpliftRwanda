@@ -196,9 +196,7 @@ export async function runSimulation(payload = {}, { signal } = {}) {
   return data;
 }
 
-/* ------------------------------------------------------------------ */
-/* LFS 2025 labour-market intelligence (Module A) — optional layers    */
-/* ------------------------------------------------------------------ */
+// LFS 2025 labour-market intelligence (Module A) — optional layer.
 
 export async function fetchLabourDistricts({ signal } = {}) {
   try {
@@ -238,9 +236,7 @@ export async function fetchLabourDisaggregation(dimension, { signal } = {}) {
   return payload.status === "success" ? payload : null;
 }
 
-/* ------------------------------------------------------------------ */
-/* VUP social-protection tracker (Module B) — optional layer           */
-/* ------------------------------------------------------------------ */
+// VUP social-protection tracker (Module B) — optional layer.
 
 export async function fetchVupDistricts({ signal } = {}) {
   try {
@@ -264,9 +260,7 @@ export async function fetchVupSummary({ signal } = {}) {
   return payload.status === "success" ? payload : null;
 }
 
-/* ------------------------------------------------------------------ */
-/* Financial inclusion + opportunity matchmaker (Module C)             */
-/* ------------------------------------------------------------------ */
+// Financial inclusion + opportunity matchmaker (Module C).
 
 export async function fetchInclusionDistricts({ signal } = {}) {
   try {
@@ -322,9 +316,7 @@ export async function postMatchmakerRecommendations(profile, { signal } = {}) {
   return payload;
 }
 
-/* ------------------------------------------------------------------ */
-/* Executive policy brief (Module D) — direct download URLs            */
-/* ------------------------------------------------------------------ */
+// Executive policy brief (Module D) — direct download URLs.
 
 export function briefDownloadUrl(districtRef, format = "pdf") {
   const ref = districtRef ? encodeURIComponent(districtRef) : "national";
@@ -334,9 +326,7 @@ export function briefDownloadUrl(districtRef, format = "pdf") {
 /** Fetch the ReportLab brief as a blob and trigger the browser save dialog.
  *
  * Unlike a plain <a href> navigation (which silently swallows 400/404/503),
- * fetch surfaces the backend's JSON error details through ApiError, so the UI
- * can show why a brief failed. ReportLab PDFs stream as application/pdf and
- * CSVs as text/csv (Content-Disposition: attachment from the backend).
+ * fetch surfaces the backend's JSON error details through ApiError.
  */
 export async function downloadBrief(districtRef, format = "pdf", { signal } = {}) {
   let res;

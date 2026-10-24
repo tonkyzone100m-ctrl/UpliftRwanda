@@ -80,6 +80,8 @@ by the Ministerial Portal in the header.
 
     uplift-backend/    FastAPI app, policy engine, seeders, tests (README inside)
     uplift-frontend/   React 19 + Vite + Tailwind v4 + Leaflet dashboard
+    db/                survey microdata + RDHS district panel + DB backup scripts
+    demo/              demo video (drop the final .mp4/.webm here for judging)
 
 ## Run
 

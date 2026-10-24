@@ -58,25 +58,25 @@ import sys
 
 TARGETS = {
     # FinScope 2024
-    "transactional_account": 77.0,   # cited: 77% (6.2m adults)
-    "mobile_money": 77.0,            # cited: 77% (5.8-6.3m adults)
-    "formal_credit": 24.0,           # cited: 24% (1.8m adults)
-    "formal_savings": 59.0,          # cited: 59% (4.8m adults)
-    "formal_inclusion": 92.0,        # OFFICIAL: formally served / formal inclusion 92% (7.5m adults)
-    "climate_shock": 69.0,           # cited: 69% experienced climate shocks
+    "transactional_account": 77.0,   # 6.2m adults
+    "mobile_money": 77.0,            # 5.8-6.3m adults
+    "formal_credit": 24.0,           # 1.8m adults
+    "formal_savings": 59.0,          # 4.8m adults
+    "formal_inclusion": 92.0,        # OFFICIAL: 7.5m adults formally served
+    "climate_shock": 69.0,
     "informal_gap": 19.0,            # derived: inclusion(96) - accounts(77)
-    "financial_health": 10.0,        # cited: 10% financially healthy
-    "vulnerability": 31.0,           # cited: 31% financially vulnerable
+    "financial_health": 10.0,
+    "vulnerability": 31.0,
     # EICV7 (2023/24)
-    "poverty": 27.4,                 # headline poverty (EICV7)
-    "extreme_poverty": 4.5,          # extreme poverty (EICV7-derived)
-    "social_protection": 61.3,       # programme reach (EICV7 composite)
+    "poverty": 27.4,                 # headline
+    "extreme_poverty": 4.5,          # headline-derived
+    "social_protection": 61.3,       # composite
     "vup_public_works": 21.0,        # TUNABLE: VUP public-works participation share (EICV7 VUP)
     "vup_direct_support": 9.5,       # TUNABLE: VUP direct-support (grants) share (EICV7 VUP)
     # EICV7 living conditions / infrastructure
-    "electricity_access": 72.0,      # OFFICIAL: electricity access (EICV7)
-    "improved_water": 90.0,          # OFFICIAL: improved water source access (EICV7)
-    "modern_flooring": 25.0,         # TUNABLE: modern solid flooring share (EICV7)
+    "electricity_access": 72.0,
+    "improved_water": 90.0,
+    "modern_flooring": 25.0,         # TUNABLE
 }
 
 BOUNDS = {  # safe plausibility ranges (applied pre-calibration)
@@ -137,11 +137,9 @@ ARCHETYPES = {
 # ============================================================================
 
 DISTRICTS = [
-    # Kigali City
     ("Nyarugenge", "Kigali City", "urban",     0.433, "kigali_core",       {"formal_credit": +4.0}),
     ("Gasabo",     "Kigali City", "urban",     0.879, "kigali_core",       {"formal_credit": +3.0, "financial_health": +1.4}),
     ("Kicukiro",   "Kigali City", "urban",     0.479, "kigali_core",       {"formal_savings": +3.0}),
-    # Eastern Province
     ("Nyagatare",  "Eastern Province", "mixed", 0.548, "secondary_city",   {"formal_savings": +1.0}),
     ("Rwamagana",  "Eastern Province", "rural", 0.449, "commercial_rural", {}),
     ("Ngoma",      "Eastern Province", "rural", 0.368, "commercial_rural", {}),
@@ -149,13 +147,11 @@ DISTRICTS = [
     ("Gatsibo",    "Eastern Province", "rural", 0.434, "emerging_rural",   {}),
     ("Bugesera",   "Eastern Province", "rural", 0.478, "emerging_rural",   {"climate_shock": +9.0, "mobile_money": -6.0}),
     ("Kirehe",     "Eastern Province", "rural", 0.424, "deep_rural",       {"climate_shock": +5.0, "poverty": +2.0}),
-    # Northern Province
     ("Musanze",    "Northern Province", "mixed", 0.532, "secondary_city",  {"mobile_money": +2.0}),
     ("Rulindo",    "Northern Province", "rural", 0.404, "commercial_rural", {}),
     ("Gicumbi",    "Northern Province", "rural", 0.455, "commercial_rural", {"climate_shock": +2.5}),
     ("Burera",     "Northern Province", "rural", 0.396, "deep_rural",       {"poverty": +0.5}),
     ("Gakenke",    "Northern Province", "rural", 0.353, "deep_rural",       {"climate_shock": +5.0, "formal_savings": -3.0}),
-    # Southern Province
     ("Huye",       "Southern Province", "mixed", 0.470, "secondary_city",  {"poverty": -1.0}),
     ("Muhanga",    "Southern Province", "mixed", 0.397, "secondary_city",  {"formal_credit": +1.5, "poverty": -0.7}),
     ("Kamonyi",    "Southern Province", "rural", 0.605, "commercial_rural", {}),
@@ -164,7 +160,6 @@ DISTRICTS = [
     ("Nyamagabe",  "Southern Province", "rural", 0.527, "deep_rural",      {"poverty": +1.0, "social_protection": +2.0}),
     ("Nyaruguru",  "Southern Province", "rural", 0.325, "deep_rural",      {"formal_credit": -2.5, "formal_savings": -3.0}),
     ("Gisagara",   "Southern Province", "rural", 0.381, "deep_rural",      {"formal_savings": -2.5, "mobile_money": -3.0}),
-    # Western Province
     ("Rubavu",     "Western Province", "mixed", 0.431, "secondary_city",   {"mobile_money": +2.0}),
     ("Rusizi",     "Western Province", "mixed", 0.397, "secondary_city",   {"poverty": +1.5}),
     ("Karongi",    "Western Province", "rural", 0.321, "deep_rural",       {"climate_shock": +4.0, "poverty": +1.5}),

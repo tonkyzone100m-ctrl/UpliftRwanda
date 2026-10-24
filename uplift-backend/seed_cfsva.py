@@ -30,12 +30,12 @@ ANCHORS = {
     "fies_moderate_severe_pct": 17.0,   # OFFICIAL: food secure 83% => 16% moderate + 1% severe
     "fies_severe_pct": 1.0,             # OFFICIAL: severely food insecure 1%
     "food_consumption_score": 47.5,     # mean FCS (IPC bands: <28 poor, 28-42 borderline, >42 acceptable)
-    "fcs_poor_pct": 9.8,                # share with poor FCS %
+    "fcs_poor_pct": 9.8,
     "hdds": 6.2,                        # mean HDDS 0-12
     "stunting_pct": 30.0,               # OFFICIAL: under-5 stunting baseline 30% (down from historical)
-    "wasting_pct": 2.1,                 # under-5 wasting %
+    "wasting_pct": 2.1,                 # under-5
     "rcsi": 13.5,                       # reduced coping strategies index (lower = better)
-    "harvest_loss_pct": 24.0,           # households with >=1 harvest loss %
+    "harvest_loss_pct": 24.0,
 }
 
 BOUNDS = {

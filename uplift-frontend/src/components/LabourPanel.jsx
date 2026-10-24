@@ -214,7 +214,7 @@ export default function LabourPanel({
 
   return (
     <div className="space-y-4">
-      <section aria-label="LFS 2025 headline indicators" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <section aria-label="LFS 2025 headline indicators" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {KPI_TILES.map((tile) => {
           const Icon = tile.icon;
           const focused = Boolean(scopedDistrict);
@@ -353,8 +353,8 @@ export default function LabourPanel({
           </div>
           <div className="rounded-xl border border-slate-200 p-3">
             <h3 className="mb-2 text-xs font-bold text-slate-800">Highest youth NEET (in scope)</h3>
-            <div className="overflow-y-auto" style={{ maxHeight: 300 }}>
-              <table className="w-full text-left text-xs">
+            <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: 300 }}>
+              <table className="w-full min-w-[22rem] text-left text-xs">
                 <thead className="bg-slate-50 text-slate-600">
                   <tr>
                     <th className="px-3 py-2 font-bold">District</th>

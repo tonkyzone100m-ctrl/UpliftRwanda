@@ -84,9 +84,9 @@ export default function App() {
   const [rdhsRows, setRdhsRows] = useState([]);   // isolated RDHS 2025 layer
   const [rdhsMounted, setRdhsMounted] = useState(
     () => TAB_BY_HASH[window.location.hash] === "rdhs", // deep-link straight into the RDHS tab
-  ); // keep-filters-alive after first rdhs visit
-  const [labourRows, setLabourRows] = useState([]);   // isolated LFS 2025 layer (Module A)
-  const [vupRows, setVupRows] = useState([]);         // isolated VUP layer (Module B)
+  );
+  const [labourRows, setLabourRows] = useState([]);
+  const [vupRows, setVupRows] = useState([]);
   const [financeRows, setFinanceRows] = useState([]); // inclusion rows for the matchmaker (Module C)
   const [districtNames, setDistrictNames] = useState([]); // brief/district pickers
   const [dataError, setDataError] = useState(null);
@@ -176,11 +176,11 @@ export default function App() {
       }
     };
     runQuiet(() => fetchData(controller.signal));
-    runQuiet(() => fetchCfsva(controller.signal)); // isolated CFSVA 2024 layer (never blocks the FinScope view)
-    runQuiet(() => fetchRdhs(controller.signal));  // isolated RDHS 2025 layer (never blocks the FinScope view)
-    runQuiet(() => fetchLabour(controller.signal)); // isolated LFS 2025 layer (never blocks the FinScope view)
-    runQuiet(() => fetchVup(controller.signal));    // isolated VUP layer (never blocks the FinScope view)
-    runQuiet(() => fetchFinance(controller.signal)); // inclusion rows for Module C
+    runQuiet(() => fetchCfsva(controller.signal));
+    runQuiet(() => fetchRdhs(controller.signal));
+    runQuiet(() => fetchLabour(controller.signal));
+    runQuiet(() => fetchVup(controller.signal));
+    runQuiet(() => fetchFinance(controller.signal));
     return () => controller.abort();
   }, [fetchData, fetchCfsva, fetchRdhs, fetchLabour, fetchVup, fetchFinance]);
 

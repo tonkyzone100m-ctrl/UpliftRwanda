@@ -26,32 +26,31 @@ SEVERITY_RANK = {"critical": 0, "attention": 1, "strength": 2, "info": 3}
 RULE_LOGGER = logging.getLogger("uplift_policy")
 
 # Official national benchmarks (FinScope 2024 / EICV7 headline statistics)
-
 NATIONAL_BENCHMARKS: dict[str, float] = {
-    "financial_inclusion_rate": 96.0,     # 96% of adults financially included
-    "transactional_account": 77.0,        # 77% hold a transactional account
-    "mobile_money": 77.0,                 # 77% use mobile wallets
-    "financial_exclusion_rate": 4.0,      # 4% remain excluded
-    "formal_credit": 24.0,                # 24% borrow formally
-    "formal_savings": 59.0,               # 59% save formally
-    "climate_shock": 69.0,                # 69% experienced climate shocks
-    "financial_health": 10.0,          # 10% financially healthy
-    "financially_coping": 57.0,           # 57% financially coping
-    "vulnerability_share": 34.0,          # 31% vulnerable + 3% extremely vulnerable
-    "poverty_headcount": 27.4,            # EICV7 headline poverty
-    "extreme_poverty_rate": 4.5,          # EICV7 extreme poverty
-    "social_protection": 61.3,            # EICV7 programme reach
+    "financial_inclusion_rate": 96.0,
+    "transactional_account": 77.0,
+    "mobile_money": 77.0,
+    "financial_exclusion_rate": 4.0,
+    "formal_credit": 24.0,
+    "formal_savings": 59.0,
+    "climate_shock": 69.0,
+    "financial_health": 10.0,
+    "financially_coping": 57.0,
+    "vulnerability_share": 34.0,        # 31% vulnerable + 3% extremely vulnerable
+    "poverty_headcount": 27.4,          # EICV7
+    "extreme_poverty_rate": 4.5,        # EICV7
+    "social_protection": 61.3,          # EICV7 composite
 }
 
 # Explicit intervention thresholds
-VULNERABILITY_SHARE_FLAG = 30.0         # flag districts above 30% vulnerability
-VULNERABILITY_SHARE_CRITICAL = 37.0     # escalate above 37%
-MOBILE_MONEY_FLOOR = 75.0               # flag districts below 75% mobile money
+VULNERABILITY_SHARE_FLAG = 30.0
+VULNERABILITY_SHARE_CRITICAL = 37.0
+MOBILE_MONEY_FLOOR = 75.0
 MOBILE_MONEY_CRITICAL = 65.0
-POVERTY_LIMIT = 30.0                    # flag districts above 30% poverty
-INCLUSION_ATTENTION = 95.0              # >1.5 pp below the 96% national rate
+POVERTY_LIMIT = 30.0
+INCLUSION_ATTENTION = 95.0  # 1.5 pp below the 96% national rate
 INCLUSION_CRITICAL = 90.0
-CLIMATE_ATTENTION = 69.0                # national exposure rate
+CLIMATE_ATTENTION = 69.0  # national exposure rate
 CLIMATE_CRITICAL = 80.0
 SAVINGS_FLOOR = 55.0
 CREDIT_FLOOR = 21.0

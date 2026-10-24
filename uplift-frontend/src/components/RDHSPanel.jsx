@@ -205,7 +205,7 @@ export default function RDHSPanel({
       {/* KPI strip — financial inclusion & living standards */}
       <section
         aria-label="RDHS 2025 headline indicators"
-        className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
       >
         {KPI_TILES.map((tile, i) => {
           const Icon = tile.icon;

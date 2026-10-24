@@ -1,21 +1,16 @@
 import { Hexagon, MapPinned, ScanSearch } from "lucide-react";
 import { PortalButton } from "./MinisterialPortal";
 
-// Navbar brand lockup (SVG mark + NISR badge)
 function UpliftLogoNISR() {
   return (
     <div className="flex items-center gap-3 group cursor-default">
-      {/* Icon Container */}
       <div className="relative w-11 h-11 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-700/80 flex items-center justify-center shadow-xl shadow-cyan-500/10 group-hover:border-cyan-500/55 transition-all duration-300">
-        {/* Hover Glow Effect */}
         <div className="absolute inset-0 rounded-2xl bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-        {/* Data/Trend Icon */}
         <svg className="w-6 h-6 text-cyan-400 transform group-hover:scale-105 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
           <path strokeLinecap="round" strokeLinejoin="round" d="M3 13h2l3-6 4 10 3-6 3 2h3" />
           <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3" opacity="0.3" />
         </svg>
       </div>
-      {/* Text Lockup */}
       <div className="flex flex-col">
         <div className="flex items-center gap-2">
           <span className="text-lg font-extrabold tracking-tighter text-white">

@@ -408,7 +408,7 @@ function TargetsEditor({ onSessionExpired, onNotice, onTargetsChanged }) {
       {phase !== "loading" && !loadError && entries && (
         <div>
           <p className="mb-2 text-[10px] leading-relaxed text-slate-500">{TARGET_TOOL_TIP}</p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {entries.map((entry) => (
               <label key={entry.target_key} title={`Official default: ${entry.official_default}`}>
                 <span className="mb-1 flex items-baseline gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">

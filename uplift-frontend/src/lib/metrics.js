@@ -188,9 +188,7 @@ export const METRIC_DEFS = [
     criticalHigh: 6,
     target: "< 6% (FinScope 2024: 3%)",
   },
-  // ------------------------------------------------------------------
   // Living conditions / infrastructure (EICV7)
-  // ------------------------------------------------------------------
   {
     key: "electricityAccess",
     label: "Electricity Access",
@@ -221,9 +219,7 @@ export const METRIC_DEFS = [
     criticalLow: 12,
     target: "TUNABLE 25% (EICV7)",
   },
-  // ------------------------------------------------------------------
   // CFSVA 2024 layer (WFP/NISR) — dedicated district_cfsva_metrics table
-  // ------------------------------------------------------------------
   {
     key: "fiesModerateSevere",
     label: "Food Insecurity (moderate+severe)",
