@@ -48,12 +48,12 @@ function HeroStat({ icon: Icon, label, value, loading, support, supportAccent = 
   );
 }
 
-function TabSwitcher({ tabs, activeTab, onChange }) {
+function TabSwitcher({ tabs, activeTab, onChange, className = "" }) {
   return (
     <div
       role="tablist"
       aria-label="Dashboard views"
-      className="flex w-full max-w-full flex-wrap items-center gap-2 overflow-x-auto rounded-xl border border-white/10 bg-white/[0.06] p-1"
+      className={`flex flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-none rounded-xl border border-white/10 bg-white/[0.06] p-1 ${className}`}
     >
       {tabs.map((tab) => {
         const active = tab.id === activeTab;
@@ -64,7 +64,7 @@ function TabSwitcher({ tabs, activeTab, onChange }) {
             role="tab"
             aria-selected={active}
             onClick={() => onChange(tab.id)}
-            className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-[11px] font-semibold transition sm:text-xs ${
+            className={`shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition sm:text-xs ${
               active
                 ? "bg-slate-100 text-slate-900 shadow"
                 : "text-slate-300 hover:bg-white/10 hover:text-white"
@@ -84,7 +84,7 @@ export default function Header({ regionCount, stats, dataPoints = 0, tabs, activ
     : null;
   return (
     <>
-      <div className="sticky top-0 z-40 border-b border-slate-800 bg-slate-900 text-slate-100 shadow-lg">
+      <div className="sticky top-0 z-40 w-full max-w-full overflow-hidden border-b border-slate-800 bg-slate-900 text-slate-100 shadow-lg">
         <div aria-hidden="true" className="h-0.5 bg-gradient-to-r from-sky-500 via-yellow-400 to-emerald-600" />
         <nav
           aria-label="Top navigation"
@@ -102,9 +102,12 @@ export default function Header({ regionCount, stats, dataPoints = 0, tabs, activ
           </div>
 
           {tabs && tabs.length > 0 && (
-            <div className="order-3 w-full sm:order-2 sm:w-auto sm:min-w-0">
-              <TabSwitcher tabs={tabs} activeTab={activeTab} onChange={onTabChange} />
-            </div>
+            <TabSwitcher
+              tabs={tabs}
+              activeTab={activeTab}
+              onChange={onTabChange}
+              className="order-3 w-full min-w-0 sm:order-2 sm:w-auto"
+            />
           )}
 
           <div className={`flex items-center gap-3 ${tabs ? "order-2 sm:order-3" : ""}`}>

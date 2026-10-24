@@ -67,6 +67,12 @@ const TABS = [
   { id: "inclusion", label: "Inclusion & Matchmaker" },
   { id: "explorer", label: "District Explorer" },
 ];
+
+/** Grey pulse block shown while a lazy panel is loading. */
+function PanelSkeleton({ className, label }) {
+  return <div role="status" aria-label={label} className={`animate-pulse bg-slate-200/70 ${className}`} />;
+}
+
 const TAB_BY_HASH = {
   "#dashboard": "dashboard",
   "#lab": "lab",
@@ -302,12 +308,7 @@ export default function App() {
 
           <div className="grid gap-4 xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] xl:items-start">
             <div className="isolate min-w-0">
-              <Suspense
-                fallback={
-                  <div className="h-96 animate-pulse rounded-xl bg-slate-200/70" role="status"
-                    aria-label="Loading district map" />
-                }
-              >
+              <Suspense fallback={<PanelSkeleton className="h-96 rounded-xl" label="Loading district map" />}>
                 <DistrictMap
                   regions={regions}
                   selectedDistrict={filters.district}
@@ -331,12 +332,7 @@ export default function App() {
           />
 
           {/* Module D — one-click executive brief (national or focused district) */}
-          <Suspense
-            fallback={
-              <div className="h-24 animate-pulse rounded-2xl bg-slate-200/70" role="status"
-                aria-label="Loading brief card" />
-            }
-          >
+          <Suspense fallback={<PanelSkeleton className="h-24 rounded-2xl" label="Loading brief card" />}>
             <BriefCard districts={districtNames} selectedDistrict={filters.district} />
           </Suspense>
         </div>
@@ -349,12 +345,7 @@ export default function App() {
         {/* Tab 3 — RDHS 2025 Living Standards (lazy; mounted on first visit) */}
         {rdhsMounted && (
           <div className={activeTab === "rdhs" ? "space-y-6" : "hidden space-y-6"}>
-            <Suspense
-              fallback={
-                <div className="h-96 animate-pulse rounded-2xl bg-slate-200/70" role="status"
-                  aria-label="Loading RDHS 2025 panel" />
-              }
-            >
+            <Suspense fallback={<PanelSkeleton className="h-96 rounded-2xl" label="Loading RDHS 2025 panel" />}>
               <RDHSPanel
                 rows={rdhsRows}
                 selectedDistrict={filters.district}
@@ -368,12 +359,7 @@ export default function App() {
 
         {/* Tab — LFS 2025 Labour Market (Module A; lazy) */}
         <div className={activeTab === "labour" ? "space-y-6" : "hidden space-y-6"}>
-          <Suspense
-            fallback={
-              <div className="h-96 animate-pulse rounded-2xl bg-slate-200/70" role="status"
-                aria-label="Loading labour-market panel" />
-            }
-          >
+          <Suspense fallback={<PanelSkeleton className="h-96 rounded-2xl" label="Loading labour-market panel" />}>
             <LabourPanel
               rows={labourRows}
               selectedDistrict={filters.district}
@@ -386,12 +372,7 @@ export default function App() {
 
         {/* Tab — VUP Social Protection (Module B; lazy) */}
         <div className={activeTab === "vup" ? "space-y-6" : "hidden space-y-6"}>
-          <Suspense
-            fallback={
-              <div className="h-96 animate-pulse rounded-2xl bg-slate-200/70" role="status"
-                aria-label="Loading VUP panel" />
-            }
-          >
+          <Suspense fallback={<PanelSkeleton className="h-96 rounded-2xl" label="Loading VUP panel" />}>
             <VupPanel
               rows={vupRows}
               selectedDistrict={filters.district}
@@ -404,12 +385,7 @@ export default function App() {
 
         {/* Tab — Inclusion & Matchmaker (Module C; lazy) */}
         <div className={activeTab === "inclusion" ? "space-y-6" : "hidden space-y-6"}>
-          <Suspense
-            fallback={
-              <div className="h-96 animate-pulse rounded-2xl bg-slate-200/70" role="status"
-                aria-label="Loading inclusion panel" />
-            }
-          >
+          <Suspense fallback={<PanelSkeleton className="h-96 rounded-2xl" label="Loading inclusion panel" />}>
             <InclusionPanel rows={financeRows} selectedDistrict={filters.district} />
           </Suspense>
         </div>

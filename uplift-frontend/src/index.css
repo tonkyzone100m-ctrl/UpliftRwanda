@@ -33,6 +33,15 @@ body {
   }
 }
 
+/* invisible scrollbar; rows still swipe or wheel-scroll fine */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 .animate-pulse-soft {
   animation: pulse-soft 1.8s ease-in-out infinite;
 }
