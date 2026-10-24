@@ -1,4 +1,5 @@
 import { Database, MapPin, RefreshCw, Server, TriangleAlert, X } from "lucide-react";
+import { BASE_URL } from "../lib/api";
 
 export function LoadingState({ label = "Loading national survey metrics…" }) {
   return (
@@ -23,7 +24,7 @@ export function ErrorState({ error, onRetry }) {
         <p className="text-sm text-rose-700">{error?.message ?? "An unexpected error occurred."}</p>
         <ul className="mt-1 space-y-1 text-xs text-rose-600">
           <li className="flex items-center justify-center gap-1.5">
-            <Server className="h-3.5 w-3.5" aria-hidden="true" /> Check that the FastAPI service is running on <code className="rounded bg-rose-100 px-1 py-0.5 font-mono">localhost:8000</code>
+            <Server className="h-3.5 w-3.5" aria-hidden="true" /> Check that the FastAPI service is reachable at <code className="rounded bg-rose-100 px-1 py-0.5 font-mono">{BASE_URL.replace(/^https?:\/\//, "")}</code>
           </li>
           <li className="flex items-center justify-center gap-1.5">
             <Database className="h-3.5 w-3.5" aria-hidden="true" /> Confirm the PostgreSQL <code className="rounded bg-rose-100 px-1 py-0.5 font-mono">uplift_rwanda_db</code> connection

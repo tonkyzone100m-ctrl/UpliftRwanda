@@ -1,18 +1,36 @@
 import { useMemo, useState } from "react";
 import { FileDown, FileSpreadsheet, Printer } from "lucide-react";
 import SectionCard from "./Card";
-import { briefDownloadUrl } from "../lib/api";
+import { downloadBrief } from "../lib/api";
 
 /**
  * Executive Policy Brief (Module D) — one-click PDF/CSV downloads straight
  * from the FastAPI brief endpoints for any district or the national view.
+ * Fetches as a blob so backend JSON errors (400/404/503) surface inline
+ * instead of a silent dead navigation.
  */
 export default function BriefCard({ districts = [], selectedDistrict = "" }) {
   const [ref, setRef] = useState(selectedDistrict || "national");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
   const effectiveRef = useMemo(
     () => (ref && districts.includes(ref) ? ref : "national"),
     [ref, districts],
   );
+
+  const download = async (format) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await downloadBrief(effectiveRef, format);
+    } catch (err) {
+      if (err?.name !== "AbortError") {
+        setError(err?.message ?? "Download failed.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <SectionCard
@@ -36,24 +54,33 @@ export default function BriefCard({ districts = [], selectedDistrict = "" }) {
       }
     >
       <div className="flex flex-wrap items-center gap-3">
-        <a
-          href={briefDownloadUrl(effectiveRef, "pdf")}
-          className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+        <button
+          type="button"
+          onClick={() => download("pdf")}
+          disabled={busy}
+          className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <FileDown className="h-4 w-4" aria-hidden="true" />
           Download PDF brief
-        </a>
-        <a
-          href={briefDownloadUrl(effectiveRef, "csv")}
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-500"
+        </button>
+        <button
+          type="button"
+          onClick={() => download("csv")}
+          disabled={busy}
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
           Download CSV dataset
-        </a>
+        </button>
         <p className="text-[11px] text-slate-500">
-          <code className="rounded bg-slate-100 px-1 py-0.5">GET /api/brief/{effectiveRef === "national" ? "national" : effectiveRef}.pdf</code>
+          <code className="rounded bg-slate-100 px-1 py-0.5">{`GET /api/brief/${effectiveRef}.pdf·.csv`}</code>
           {" "}· auto-refreshes whenever NISR publishes a new survey layer
         </p>
+        {error && (
+          <p role="alert" className="w-full rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
+            {error}
+          </p>
+        )}
       </div>
     </SectionCard>
   );

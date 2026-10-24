@@ -162,12 +162,18 @@ fresh clone serves the full dashboard immediately.
 
 - Frontend: `uplift-frontend` is a standard Vite app — import the repo in
   Vercel, set **Root Directory** to `uplift-frontend`, build `npm run build`,
-  output `dist`, and set `VITE_API_URL` to the public API base URL. SPA
-  deep-links use hash routing (`#rdhs`), so no rewrite rules are needed.
+  output `dist`, and set `VITE_API_BASE_URL` to the public API base URL (the
+  legacy `VITE_API_URL` name is also honoured as a fallback; see
+  `uplift-frontend/.env.example`). SPA deep-links use hash routing (`#rdhs`),
+  so no rewrite rules are needed.
 - API: FastAPI + PostgreSQL. Host it on any service that keeps a persistent
   Postgres connection (Railway/Fly/Render — `./start_prod.sh`), or point
   `DATABASE_URL` at a managed Postgres (Neon/Supabase). The frontend is
-  read-only against a public API, so CORS is the only coupling.
+  read-only against a public API, so CORS is the only coupling: the backend
+  allows `https://uplift-frontend.vercel.app` plus every Vercel preview alias
+  (`*.vercel.app` regex) out of the box, while local dev ports (5173/4173/3000)
+  stay pre-allowed for `npm run dev`. `UPLIFT_CORS_ORIGINS` (comma-separated)
+  overrides or extends this list without code changes.
 - The RDHS layer needs no extra deploy step: the committed panel JSON seeds
   automatically at boot (or `python3 seed_rdhs.py --url $DATABASE_URL`).
 

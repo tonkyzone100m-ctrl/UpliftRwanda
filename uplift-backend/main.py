@@ -137,6 +137,7 @@ _cors_origins = [
     origin.strip()
     for origin in os.getenv(
         "UPLIFT_CORS_ORIGINS",
+        "https://uplift-frontend.vercel.app,"     # production frontend (Vercel)
         "http://localhost:5173,http://127.0.0.1:5173,"
         "http://localhost:4173,http://127.0.0.1:4173,"
         "http://localhost:3000,http://127.0.0.1:3000",
@@ -144,10 +145,13 @@ _cors_origins = [
     if origin.strip()
 ]
 # Bearer-token auth (no cookies) - credentials stays False so wildcard origins
-# can never be combined with credentialed requests.
+# can never be combined with credentialed requests. The origin regex covers
+# Vercel preview aliases (uplift-frontend-<hash>.vercel.app); safe because
+# requests carry no cookies — tighten/extend via UPLIFT_CORS_ORIGINS if needed.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],

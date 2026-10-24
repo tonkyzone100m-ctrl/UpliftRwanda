@@ -1,4 +1,16 @@
-export const BASE_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
+export const BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL ?? // production: set on the Vercel dashboard
+  import.meta.env.VITE_API_URL ??      // legacy name kept for existing deploys
+  "http://localhost:8000"              // local development fallback
+).replace(/\/+$/, "");
+
+// Catch the most common production misconfiguration early: deploying without
+// the required env var, leaving the localhost fallback baked into the bundle.
+if (import.meta.env.PROD && /\/\/(localhost|127\.0\.0\.1)/.test(BASE_URL)) {
+  console.warn(
+    "[uplift-api] PROD build is pointing at a localhost API — set VITE_API_BASE_URL in your hosting dashboard.",
+  );
+}
 
 export class ApiError extends Error {
   constructor(message, { status, cause, extra } = {}) {
@@ -317,4 +329,43 @@ export async function postMatchmakerRecommendations(profile, { signal } = {}) {
 export function briefDownloadUrl(districtRef, format = "pdf") {
   const ref = districtRef ? encodeURIComponent(districtRef) : "national";
   return `${BASE_URL}/api/brief/${ref}.${format}`;
+}
+
+/** Fetch the ReportLab brief as a blob and trigger the browser save dialog.
+ *
+ * Unlike a plain <a href> navigation (which silently swallows 400/404/503),
+ * fetch surfaces the backend's JSON error details through ApiError, so the UI
+ * can show why a brief failed. ReportLab PDFs stream as application/pdf and
+ * CSVs as text/csv (Content-Disposition: attachment from the backend).
+ */
+export async function downloadBrief(districtRef, format = "pdf", { signal } = {}) {
+  let res;
+  try {
+    res = await fetch(briefDownloadUrl(districtRef, format), {
+      signal,
+      headers: { Accept: format === "csv" ? "text/csv" : "application/pdf" },
+    });
+  } catch (err) {
+    if (err.name === "AbortError") throw err;
+    throw new ApiError(`Cannot reach the brief generator at ${BASE_URL}.`, { cause: err });
+  }
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const body = await res.json();
+      detail = body.detail ?? detail;
+    } catch {
+      /* stream body — keep statusText */
+    }
+    throw new ApiError(detail || `API responded with ${res.status}`, { status: res.status });
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `upliftrwanda-brief-${districtRef || "national"}.${format}`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
