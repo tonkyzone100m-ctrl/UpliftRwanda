@@ -1,7 +1,7 @@
 export const BASE_URL = (
   import.meta.env.VITE_API_BASE_URL ?? // production: set on the Vercel dashboard
   import.meta.env.VITE_API_URL ??      // legacy name kept for existing deploys
-  "http://localhost:8000"              // local development fallback
+  "https://uplift-backend-77a1.onrender.com" // deployed FastAPI service (prod fallback)
 ).replace(/\/+$/, "");
 
 // Catch the most common production misconfiguration early: deploying without
