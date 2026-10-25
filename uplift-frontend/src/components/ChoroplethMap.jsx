@@ -1,52 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, GeoJSON } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import { Satellite, Map as MapIcon } from "lucide-react";
+import { Map as MapIcon, Satellite } from "lucide-react";
+import {
+  FOCUS_MAX_ZOOM,
+  RW_BOUNDS,
+  RW_CENTER,
+  RW_PAN_BOUNDS,
+  RW_ZOOM,
+  bandColor,
+  getLayerBounds,
+  quintileBuckets,
+  useDistrictGeo,
+  useLeafletResizer,
+} from "../lib/mapkit";
 import SectionCard from "./Card";
 import MapFocus from "./MapFocus";
 
-const RW_CENTER = [-1.9403, 29.8739];
-const RW_ZOOM = 8;
-const RW_BOUNDS = [[-2.85, 28.85], [-1.02, 30.95]];
-const RW_PAN_BOUNDS = [[-3.1, 28.6], [-0.8, 31.2]];
-const FOCUS_MAX_ZOOM = 11;
-
-const GEO_URL = "/geo/rw-districts.geojson";
-
-// Discrete 5-step ramp (light → dark), worst-first semantics: for "lower is
-// better" metrics band 0 paints the darkest red; for "higher is better" it flips.
-const RAMP = ["#b91c1c", "#f87171", "#fbbf24", "#93c5fd", "#22c55e"];
-
-function quintileBuckets(values) {
-  const clean = values.filter((v) => v != null && !Number.isNaN(v)).sort((a, b) => a - b);
-  if (clean.length < 5) return null;
-  const qs = [0, 0.2, 0.4, 0.6, 0.8, 1].map((q) => {
-    const idx = Math.min(clean.length - 1, Math.floor(q * clean.length));
-    return clean[idx];
-  });
-  return (v) => {
-    if (v == null || Number.isNaN(v)) return null;
-    for (let i = 1; i < qs.length; i += 1) {
-      if (v <= qs[i] + 1e-9) return i - 1;
-    }
-    return qs.length - 2;
-  };
-}
-
-function bandColor(bandIndex, direction) {
-  if (bandIndex == null) return "#e5e7eb";
-  const idx = direction === "higher" ? 4 - bandIndex : bandIndex;
-  return RAMP[idx];
-}
-
-/**
- * Generic district choropleth used by the LFS / VUP / inclusion modules.
- * props:
- *   rows       [{ district, ...metricKey: number }]
- *   metricDefs [{ key, label, direction: "lower"|"higher", format }]
- *   selectedDistrict / onSelectDistrict — synced with the app-wide focus
- * Self-contained geo fetch so it can live inside any panel without props.
- */
+// District choropleth reused by the LFS / VUP / inclusion panels.
+// rows: [{ district, ...metricKey: number }] · metricDefs: [{ key, label, direction, format }]
 export default function ChoroplethMap({
   rows = [],
   metricDefs = [],
@@ -55,50 +27,12 @@ export default function ChoroplethMap({
   title = "District Choropleth",
   subtitle,
   tone = "sky",
-  heightClass = "h-[380px] sm:h-[460px]",
-  footerNote,
 }) {
-  const [geo, setGeo] = useState(null);
+  const geo = useDistrictGeo();
+  const { shellRef, mapRef } = useLeafletResizer();
   const [metricKey, setMetricKey] = useState(metricDefs[0]?.key ?? "");
-  const [hovered, setHovered] = useState(null);
   const layerRef = useRef(null);
-  const mapRef = useRef(null);
-  const shellRef = useRef(null);
-
-  useEffect(() => {
-    let live = true;
-    fetch(GEO_URL)
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`geo ${res.status}`))))
-      .then((data) => live && setGeo(data))
-      .catch(() => live && setGeo(null));
-    return () => {
-      live = false;
-    };
-  }, []);
-
-  // Leaflet inside a tabbed SPA: re-measure whenever the container resizes.
-  useEffect(() => {
-    const el = shellRef.current;
-    if (!el) return undefined;
-    const observer = new ResizeObserver(() => mapRef.current?.invalidateSize());
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  const getDistrictBounds = useCallback((name) => {
-    const target = String(name).toLowerCase();
-    const match = (layerRef.current?.getLayers() ?? []).find(
-      (layer) => String(layer.feature?.properties?.district ?? "").toLowerCase() === target,
-    );
-    if (typeof match?.getBounds !== "function") return null;
-    try {
-      const bounds = match.getBounds();
-      if (typeof bounds?.isValid === "function" && bounds.isValid()) return bounds;
-    } catch {
-      return null; // layer has degenerate/NaN geometry
-    }
-    return null;
-  }, []);
+  const [hovered, setHovered] = useState(null);
 
   const def = useMemo(
     () => metricDefs.find((d) => d.key === metricKey) ?? metricDefs[0] ?? null,
@@ -116,11 +50,15 @@ export default function ChoroplethMap({
 
   const bucketFor = useMemo(() => quintileBuckets([...regional.values()]), [regional]);
 
+  const getDistrictBounds = useCallback(
+    (name) => getLayerBounds(layerRef, name),
+    [],
+  );
+
   const styleFeature = (feature) => {
     const name = String(feature.properties.district ?? "").toLowerCase();
-    const value = regional.get(name);
-    const band = bucketFor ? bucketFor(value) : null;
-    const active = selectedDistrict && name === selectedDistrict.toLowerCase();
+    const band = bucketFor?.(regional.get(name)) ?? null;
+    const active = !!selectedDistrict && name === selectedDistrict.toLowerCase();
     return {
       fillColor: bandColor(band, def?.direction ?? "lower"),
       fillOpacity: 0.82,
@@ -165,7 +103,7 @@ export default function ChoroplethMap({
         <div
           className="flex flex-wrap items-center justify-end gap-1.5"
           role="group"
-          aria-label="Indicator selector for the map"
+          aria-label="Indicator selector"
         >
           {metricDefs.map((d) => {
             const loaded = rows.some((r) => r[d.key] != null);
@@ -178,7 +116,7 @@ export default function ChoroplethMap({
                 disabled={!loaded}
                 title={loaded ? d.label : `${d.label} — no rows loaded yet`}
                 aria-pressed={active}
-                className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold transition sm:text-[11px] ${
+                className={`rounded-full border px-2.5 py-1.5 text-[10px] font-semibold transition sm:text-[11px] ${
                   active
                     ? "border-slate-900 bg-slate-900 text-white"
                     : loaded
@@ -206,11 +144,10 @@ export default function ChoroplethMap({
               </span>
             ))}
           </div>
-          {footerNote && <p className="text-[11px] text-slate-500">{footerNote}</p>}
         </footer>
       }
     >
-      <div ref={shellRef} className={`overflow-hidden rounded-xl border border-slate-200 ${heightClass}`}>
+      <div ref={shellRef} className="h-[320px] overflow-hidden rounded-xl border border-slate-200 sm:h-[460px]">
         {geo ? (
           <MapContainer
             ref={mapRef}

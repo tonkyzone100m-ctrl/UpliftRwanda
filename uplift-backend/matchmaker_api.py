@@ -19,7 +19,8 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import bindparam, text
 
-from insights_api import get_db, _resolve_district, _load_metric_map, _load_national_means
+from main import get_db
+from insights_api import _load_metric_map, _load_national_means, _resolve_district
 from models import as_float
 import seed_vup
 import matchmaker_engine

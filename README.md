@@ -169,8 +169,10 @@ fresh clone serves the full dashboard immediately.
   `uplift-frontend/.env.example`). SPA deep-links use hash routing (`#rdhs`),
   so no rewrite rules are needed.
 - API: FastAPI + PostgreSQL. Host it on any service that keeps a persistent
-  Postgres connection (Railway/Fly/Render — `./start_prod.sh`), or point
-  `DATABASE_URL` at a managed Postgres (Neon/Supabase). The frontend is
+  Postgres connection (Render/Railway/Fly all pick up the checked-in
+  `Procfile` → `./start_prod.sh`; a missing `.env` is fine — platform env vars
+  carry the configuration), or point `DATABASE_URL` at a managed Postgres
+  (Neon/Supabase). The frontend is
   read-only against a public API, so CORS is the only coupling: the backend
   allows `https://uplift-frontend.vercel.app` plus every Vercel preview alias
   (`*.vercel.app` regex) out of the box, while local dev ports (5173/4173/3000)

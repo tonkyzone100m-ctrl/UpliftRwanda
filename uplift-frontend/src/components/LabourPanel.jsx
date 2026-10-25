@@ -17,6 +17,7 @@ import { Briefcase, Factory, TrendingDown, Users, GraduationCap } from "lucide-r
 import SectionCard from "./Card";
 import ChoroplethMap from "./ChoroplethMap";
 import { fetchLabourDisaggregation } from "../lib/api";
+import { percent as fmt, weightedMean as wmean } from "../lib/format";
 
 const PROVINCE_COLORS = {
   "City of Kigali": "#0ea5e9",
@@ -45,20 +46,6 @@ const OPTIONS_LABELS = {
   disability: { disabled: "Person with disability", not_disabled: "No disability" },
 };
 
-function wmean(rows, key) {
-  let w = 0;
-  let s = 0;
-  for (const r of rows) {
-    const val = r[key];
-    if (val == null) continue;
-    const wt = r.population_weight || 1;
-    w += wt;
-    s += val * wt;
-  }
-  return w > 0 ? s / w : null;
-}
-
-const fmt = (v, decimals = 1) => (v == null ? "—" : `${Number(v).toFixed(decimals)}%`);
 
 export default function LabourPanel({
   rows = [],
@@ -169,7 +156,7 @@ export default function LabourPanel({
         icon={Briefcase}
         tone="teal"
         title="Labour Market Intelligence · NISR LFS 2025"
-        subtitle="First-data-layer under Module A — 30-district calibrated labour panel"
+        subtitle="30-district calibrated labour panel from LFS 2025"
       >
         <div className="rounded-xl border border-dashed border-teal-300 bg-teal-50/50 p-8 text-center">
           <p className="text-sm font-semibold text-slate-800">LFS 2025 layer not seeded yet</p>

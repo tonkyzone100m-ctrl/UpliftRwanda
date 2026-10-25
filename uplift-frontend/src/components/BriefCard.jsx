@@ -4,7 +4,7 @@ import SectionCard from "./Card";
 import { downloadBrief } from "../lib/api";
 
 /**
- * Executive Policy Brief (Module D) — one-click PDF/CSV downloads straight
+ * Executive Policy Brief — one-click PDF/CSV downloads straight
  * from the FastAPI brief endpoints for any district or the national view.
  * Fetches as a blob so backend JSON errors (400/404/503) surface inline
  * instead of a silent dead navigation.
@@ -73,7 +73,7 @@ export default function BriefCard({ districts = [], selectedDistrict = "" }) {
           Download CSV dataset
         </button>
         <p className="text-[11px] text-slate-500">
-          <code className="rounded bg-slate-100 px-1 py-0.5">{`GET /api/brief/${effectiveRef}.pdf·.csv`}</code>
+          <code className="rounded bg-slate-100 px-1 py-0.5">{`GET /api/brief/${effectiveRef}.pdf | .csv`}</code>
           {" "}· auto-refreshes whenever NISR publishes a new survey layer
         </p>
         {error && (

@@ -15,6 +15,7 @@ import { HeartHandshake, HandCoins, ShieldAlert, Clock3, Landmark } from "lucide
 import SectionCard from "./Card";
 import ChoroplethMap from "./ChoroplethMap";
 import { fetchVupSummary } from "../lib/api";
+import { percent as fmt, thousands as money, weightedMean as wmean } from "../lib/format";
 
 const MAP_METRICS = [
   { key: "caseload_per_1000", label: "Caseload /1000", direction: "higher" },
@@ -37,21 +38,6 @@ const CHANNEL_COLORS = [
   { key: "cash_pickup", label: "Cash pickup", color: "#f59e0b" },
 ];
 
-function wmean(rows, key) {
-  let w = 0;
-  let s = 0;
-  for (const r of rows) {
-    const val = r[key];
-    if (val == null) continue;
-    const wt = r.population_weight || 1;
-    w += wt;
-    s += val * wt;
-  }
-  return w > 0 ? s / w : null;
-}
-
-const fmt = (v) => (v == null ? "—" : `${Number(v).toFixed(1)}%`);
-const money = (v) => (v == null ? "—" : v.toLocaleString("en-US"));
 
 export default function VupPanel({
   rows = [],
@@ -111,7 +97,7 @@ export default function VupPanel({
         icon={HeartHandshake}
         tone="emerald"
         title="VUP & Social Protection Tracker"
-        subtitle="Module B — 30-district caseload, poverty and payment telemetry"
+        subtitle="30-district caseload, poverty and payment telemetry"
       >
         <div className="rounded-xl border border-dashed border-emerald-300 bg-emerald-50/50 p-8 text-center">
           <p className="text-sm font-semibold text-slate-800">VUP layer not seeded yet</p>

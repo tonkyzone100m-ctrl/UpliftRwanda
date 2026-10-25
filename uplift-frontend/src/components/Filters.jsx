@@ -1,5 +1,5 @@
 import { MapPin, RefreshCw, RotateCcw, Search, SlidersHorizontal, Table, X } from "lucide-react";
-import { categoryLabels, categoryOptions } from "../lib/filters";
+import { categoryLabels, categoryOptions, hasActiveFilters } from "../lib/filters";
 import { categoryStyle } from "../lib/categories";
 
 const CONTROL_CLASSES =
@@ -135,7 +135,7 @@ function FilterChip({ label, dotClass, onRemove }) {
         type="button"
         onClick={onRemove}
         aria-label={`Remove filter: ${label}`}
-        className="ml-0.5 rounded-full p-0.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+        className="my-0.5 ml-0.5 rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
       >
         <X className="h-3 w-3" aria-hidden="true" />
       </button>
@@ -155,7 +155,7 @@ export default function Filters({
 }) {
   const options = categoryOptions(displayRows);
   const labels = categoryLabels(displayRows);
-  const hasActive = Boolean(filters.query || filters.categoryId !== "all" || filters.district);
+  const hasActive = hasActiveFilters(filters);
   const time = updatedAt
     ? updatedAt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" })
     : "—";
@@ -224,7 +224,7 @@ export default function Filters({
             <button
               type="button"
               onClick={() => onChange({ query: "", categoryId: "all", district: "" })}
-              className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-bold text-emerald-700 transition hover:bg-emerald-50"
+              className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[11px] font-bold text-emerald-700 transition hover:bg-emerald-50"
             >
               <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
               Reset
@@ -233,7 +233,7 @@ export default function Filters({
           <button
             type="button"
             onClick={onRefresh}
-            className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-800"
+            className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-800"
           >
             <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
             Refresh

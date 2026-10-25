@@ -23,7 +23,7 @@ export function PortalButton({ onOpen, session }) {
       type="button"
       onClick={onOpen}
       aria-haspopup="dialog"
-      className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold shadow-sm ring-1 ring-inset transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
+      className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold shadow-sm ring-1 ring-inset transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 sm:px-3.5 ${
         active
           ? "bg-emerald-500/15 text-emerald-200 ring-emerald-400/40 hover:bg-emerald-500/25"
           : "bg-white/10 text-white ring-white/20 hover:bg-white/15"
@@ -67,7 +67,6 @@ export default function MinisterialPortal({ open, onClose, onTargetsChanged, onD
   const [confirmSeed, setConfirmSeed] = useState(false);
   const [notice, setNotice] = useState(null);
   const usernameRef = useRef(null);
-  const dialogRef = useRef(null);
 
   useEffect(() => {
     if (!open) return;
@@ -148,11 +147,10 @@ export default function MinisterialPortal({ open, onClose, onTargetsChanged, onD
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
-        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label="Ministerial Portal"
-        className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+        className="flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
       >
         <header className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
           <div className="flex items-center gap-3">
@@ -172,14 +170,14 @@ export default function MinisterialPortal({ open, onClose, onTargetsChanged, onD
             type="button"
             onClick={onClose}
             aria-label="Close Ministerial Portal"
-            className="rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </header>
 
         {status === "console" && session ? (
-          <div className="max-h-[min(74vh,660px)] overflow-y-auto px-5 py-5">
+          <div className="min-h-0 overflow-y-auto px-5 py-5">
             <div className="rounded-xl bg-emerald-50 p-3 text-[11px] font-medium text-emerald-800 ring-1 ring-inset ring-emerald-600/15">
               Signed in as <b>{session.username}</b> · session expires in ~{expiryMinutes(session.expiresAt)} min
             </div>
@@ -225,7 +223,7 @@ export default function MinisterialPortal({ open, onClose, onTargetsChanged, onD
             </button>
           </div>
         ) : (
-          <form className="px-5 py-5" onSubmit={handleLogin}>
+          <form className="min-h-0 overflow-y-auto px-5 py-5" onSubmit={handleLogin}>
             <div className="mb-3">
               <label htmlFor="portal-username" className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
                 Administrator username
@@ -413,7 +411,7 @@ function TargetsEditor({ onSessionExpired, onNotice, onTargetsChanged }) {
               <label key={entry.target_key} title={`Official default: ${entry.official_default}`}>
                 <span className="mb-1 flex items-baseline gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
                   {TARGET_FIELDS.find((f) => f.key === entry.target_key)?.label ?? entry.target_key}
-                  {entry.is_overridden && <span className="rounded bg-amber-100 px-1 text-[9px] font-black text-amber-700">OVERRIDE</span>}
+                  {entry.is_overridden && <span className="rounded bg-amber-100 px-1 text-[10px] font-black text-amber-700">OVERRIDE</span>}
                 </span>
                 <input
                   inputMode="decimal"
@@ -543,7 +541,7 @@ function MicrodataUploader({ onSessionExpired, onNotice, onDataChanged }) {
       />
 
       <p className="mt-2 text-[10px] leading-relaxed text-slate-500">
-        Header must be <code className="rounded bg-slate-100 px-1 text-[9px]">district, indicator_code, survey_year, value</code> — new
+        Header must be <code className="rounded bg-slate-100 px-1 text-[10px]">district, indicator_code, survey_year, value</code> — new
         vintages insert, existing (district, year, indicator) upserts.
       </p>
 

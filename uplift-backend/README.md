@@ -126,10 +126,11 @@ working artifact — the submission artifact is `../db/database_snapshot.sql`.
 sudo systemctl enable --now uplift-api.service   # after installing the unit template
 ```
 
-`start_prod.sh` refuses to boot without an admin password, so the dev fallback
-credential can never leak into a live serving. An empty `survey_metrics` table
-self-seeds at boot; a restored `database_snapshot.sql` and a fresh seed agree
-value-for-value (deterministic seeders).
+The bundled `Procfile` (`web: ./start_prod.sh`) covers Procfile-based hosts such
+as Render. `start_prod.sh` refuses to boot without an admin password, so the dev
+fallback credential can never leak into a live serving. An empty `survey_metrics`
+table self-seeds at boot; a restored `database_snapshot.sql` and a fresh seed
+agree value-for-value (deterministic seeders).
 
 ## Data provenance
 

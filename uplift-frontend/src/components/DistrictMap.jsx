@@ -3,116 +3,62 @@ import { MapContainer, GeoJSON } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { Map as MapIcon, Satellite } from "lucide-react";
 import { METRIC_DEFS, formatMetricValue } from "../lib/metrics";
+import {
+  FOCUS_MAX_ZOOM,
+  RW_BOUNDS,
+  RW_CENTER,
+  RW_PAN_BOUNDS,
+  RW_ZOOM,
+  bandColor,
+  getLayerBounds,
+  quintileBuckets,
+  useDistrictGeo,
+  useLeafletResizer,
+} from "../lib/mapkit";
 import SectionCard from "./Card";
 import MapFocus from "./MapFocus";
 
-const RW_CENTER = [-1.9441, 29.8739];
-const RW_ZOOM = 9;
-const RW_BOUNDS = [[-2.85, 28.85], [-1.02, 30.95]]; // national envelope for selection resets
-const RW_PAN_BOUNDS = [[-3.1, 28.6], [-0.8, 31.2]]; // outer pan clamp (viewport can never leave Rwanda)
-const DISTRICT_FOCUS_MAX_ZOOM = 11;
-
-const GEO_URL = "/geo/rw-districts.geojson";
-
-// Discrete 5-step ramps (light → dark). For "higher is better", the LAST color
-// is the worst band; for "lower is better", the FIRST color is the worst band.
-const RAMP_WORST_FIRST = ["#b91c1c", "#f87171", "#fbbf24", "#93c5fd", "#22c55e"];
-
-function quintileBuckets(values) {
-  const clean = values.filter((v) => v != null && !Number.isNaN(v)).sort((a, b) => a - b);
-  if (clean.length < 5) return null;
-  const qs = [0, 0.2, 0.4, 0.6, 0.8, 1].map((q) => {
-    const idx = Math.min(clean.length - 1, Math.floor(q * clean.length));
-    return clean[idx];
-  });
-  return (v) => {
-    if (v == null || Number.isNaN(v)) return null;
-    for (let i = 1; i < qs.length; i += 1) {
-      if (v <= qs[i] + 1e-9) return i - 1; // 0 = worst-first index
-    }
-    return qs.length - 2;
-  };
-}
-
-function bandColor(bandIndex, direction) {
-  if (bandIndex == null) return "#e5e7eb";
-  const idx = direction === "higher" ? 4 - bandIndex : bandIndex;
-  return RAMP_WORST_FIRST[idx];
-}
+const CHIP_GROUPS = [
+  {
+    id: "finscope",
+    label: "FinScope · EICV7",
+    keys: ["povertyRate", "extremePoverty", "vulnerableShare", "climateShock",
+      "financialInclusion", "mobileMoney", "formalCredit", "socialProtection"],
+    accent: "sky",
+  },
+  {
+    id: "cfsva",
+    label: "CFSVA 2024",
+    keys: ["fiesModerateSevere", "fiesSevere", "foodConsumptionScore", "hdds", "stunting"],
+    accent: "amber",
+  },
+];
 
 export default function DistrictMap({ regions = [], selectedDistrict = "", onSelectDistrict }) {
-  const [geo, setGeo] = useState(null);
+  const geo = useDistrictGeo();
+  const { shellRef, mapRef } = useLeafletResizer();
   const [metricKey, setMetricKey] = useState("povertyRate");
   const layerRef = useRef(null);
   const [hovered, setHovered] = useState(null);
-  const mapRef = useRef(null);
-  const shellRef = useRef(null);
 
-  // Bounds of a mounted district layer (any district-name casing).
-  const getDistrictBounds = useCallback((name) => {
-    const target = String(name).toLowerCase();
-    const match = (layerRef.current?.getLayers() ?? []).find(
-      (layer) => String(layer.feature?.properties?.district ?? "").toLowerCase() === target,
-    );
-    return typeof match?.getBounds === "function" ? match.getBounds() : null;
-  }, []);
-
-  // The map lives inside a tabbed SPA view; when the tab re-shows the container
-  // Leaflet still believes its size is 0, so re-measure on every resize event.
-  useEffect(() => {
-    const el = shellRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver(() => mapRef.current?.invalidateSize());
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  // Heatmap layer toggles; CFSVA chips only activate once the food-security
-  // rows for the selected load have arrived (they layer on top of FinScope).
-  const MAP_CHIP_GROUPS = [
-    {
-      id: "finscope",
-      label: "FinScope · EICV7",
-      keys: ["povertyRate", "extremePoverty", "vulnerableShare", "climateShock",
-        "financialInclusion", "mobileMoney", "formalCredit", "socialProtection"],
-      accent: "sky",
-    },
-    {
-      id: "cfsva",
-      label: "CFSVA 2024",
-      keys: ["fiesModerateSevere", "fiesSevere", "foodConsumptionScore", "hdds", "stunting"],
-      accent: "amber",
-    },
-  ];
-
-  useEffect(() => {
-    let live = true;
-    fetch(GEO_URL)
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`geo ${res.status}`))))
-      .then((data) => live && setGeo(data))
-      .catch(() => live && setGeo(null));
-    return () => {
-      live = false;
-    };
-  }, []);
+  // CFSVA chips activate only once their rows for the selection have arrived
+  // (they layer on top of the FinScope/EICV7 base).
+  const availableKeys = useMemo(() => {
+    const present = new Set();
+    for (const region of regions) {
+      for (const [key, entry] of Object.entries(region.metricMap ?? {})) {
+        if (entry?.value != null) present.add(key);
+      }
+    }
+    return present;
+  }, [regions]);
 
   const def = useMemo(
     () => METRIC_DEFS.find((d) => d.key === metricKey) ?? METRIC_DEFS[0],
     [metricKey],
   );
+  const defIsCfsva = CHIP_GROUPS[1].keys.includes(metricKey);
 
-  const availableKeys = useMemo(() => {
-    const present = new Set();
-    for (const region of regions) {
-      for (const key of Object.keys(region.metricMap ?? {})) {
-        if (region.metricMap?.[key] != null) present.add(key);
-      }
-    }
-    return present;
-  }, [regions]);
-  const defIsCfsva = MAP_CHIP_GROUPS[1].keys.includes(metricKey);
-
-  // district -> { value, defKey, weight } straight from canonical metricMap
   const regional = useMemo(() => {
     const map = new Map();
     for (const region of regions) {
@@ -122,16 +68,17 @@ export default function DistrictMap({ regions = [], selectedDistrict = "", onSel
     return map;
   }, [regions, metricKey]);
 
-  const bucketFor = useMemo(
-    () => quintileBuckets([...regional.values()]),
-    [regional],
+  const bucketFor = useMemo(() => quintileBuckets([...regional.values()]), [regional]);
+
+  const getDistrictBounds = useCallback(
+    (name) => getLayerBounds(layerRef, name),
+    [],
   );
 
   const styleFeature = (feature) => {
     const name = String(feature.properties.district ?? "").toLowerCase();
-    const value = regional.get(name);
-    const band = bucketFor ? bucketFor(value) : null;
-    const active = selectedDistrict && name === selectedDistrict.toLowerCase();
+    const band = bucketFor?.(regional.get(name)) ?? null;
+    const active = !!selectedDistrict && name === selectedDistrict.toLowerCase();
     return {
       fillColor: bandColor(band, def.direction),
       fillOpacity: 0.82,
@@ -152,8 +99,7 @@ export default function DistrictMap({ regions = [], selectedDistrict = "", onSel
 
   const nationalMean = useMemo(() => {
     const values = [...regional.values()].filter((v) => v != null);
-    if (!values.length) return null;
-    return values.reduce((acc, v) => acc + v, 0) / values.length;
+    return values.length ? values.reduce((acc, v) => acc + v, 0) / values.length : null;
   }, [regional]);
 
   // per-feature tooltips bound imperatively (data-driven GeoJSON shares one otherwise)
@@ -189,42 +135,43 @@ export default function DistrictMap({ regions = [], selectedDistrict = "", onSel
           <div
             className="flex flex-wrap items-center justify-end gap-1.5"
             role="group"
-            aria-label="Indicator selector for the map"
+            aria-label="Indicator selector"
           >
-            {MAP_CHIP_GROUPS.map((group) => (
+            {CHIP_GROUPS.map((group) => (
               <div key={group.id} className="flex flex-wrap items-center gap-1.5">
                 <span
-                  className={`${group.id === "cfsva" ? "text-amber-700" : "text-sky-700"} select-none text-[9px] font-bold uppercase tracking-wider`}
+                  className={`${group.id === "cfsva" ? "text-amber-700" : "text-sky-700"} select-none text-[10px] font-bold uppercase tracking-wider`}
                 >
                   {group.label}
                 </span>
-                {group.keys.map((key) => {
-                  const d = METRIC_DEFS.find((e) => e.key === key);
-                  if (!d) return null;
-                  const loaded = availableKeys.has(key);
-                  const active = metricKey === key;
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => loaded && setMetricKey(key)}
-                      disabled={!loaded}
-                      title={loaded ? d.label : `${d.label} — CFSVA rows not loaded yet`}
-                      aria-pressed={active}
-                      className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold transition sm:text-[11px] ${
-                        active
-                          ? group.id === "cfsva"
-                            ? "border-amber-700 bg-amber-700 text-white"
-                            : "border-slate-900 bg-slate-900 text-white"
-                          : loaded
-                            ? "border-slate-300 bg-white text-slate-600 hover:border-slate-500"
-                            : "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
-                      }`}
-                    >
-                      {loaded ? d.label : `${d.label} ·`}
-                    </button>
-                  );
-                })}
+                {group.keys
+                  .map((key) => METRIC_DEFS.find((d) => d.key === key))
+                  .filter(Boolean)
+                  .map((d) => {
+                    const loaded = availableKeys.has(d.key);
+                    const active = metricKey === d.key;
+                    return (
+                      <button
+                        key={d.key}
+                        type="button"
+                        onClick={() => loaded && setMetricKey(d.key)}
+                        disabled={!loaded}
+                        title={loaded ? d.label : `${d.label} — rows not loaded yet`}
+                        aria-pressed={active}
+                        className={`rounded-full border px-2.5 py-1.5 text-[10px] font-semibold transition sm:text-[11px] ${
+                          active
+                            ? group.id === "cfsva"
+                              ? "border-amber-700 bg-amber-700 text-white"
+                              : "border-slate-900 bg-slate-900 text-white"
+                            : loaded
+                              ? "border-slate-300 bg-white text-slate-600 hover:border-slate-500"
+                              : "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
+                        }`}
+                      >
+                        {d.label}
+                      </button>
+                    );
+                  })}
               </div>
             ))}
           </div>
@@ -255,7 +202,7 @@ export default function DistrictMap({ regions = [], selectedDistrict = "", onSel
         </footer>
       }
     >
-      <div ref={shellRef} className="h-[420px] overflow-hidden rounded-xl border border-slate-200 sm:h-[520px]">
+      <div ref={shellRef} className="h-[320px] overflow-hidden rounded-xl border border-slate-200 sm:h-[520px]">
         {geo ? (
           <MapContainer
             ref={mapRef}
@@ -273,7 +220,7 @@ export default function DistrictMap({ regions = [], selectedDistrict = "", onSel
               selectedDistrict={selectedDistrict}
               getDistrictBounds={getDistrictBounds}
               nationalBounds={RW_BOUNDS}
-              maxZoom={DISTRICT_FOCUS_MAX_ZOOM}
+              maxZoom={FOCUS_MAX_ZOOM}
             />
             <GeoJSON
               ref={layerRef}

@@ -8,7 +8,7 @@ const TONES = {
   slate: "bg-slate-100 text-slate-500",
 };
 
-export function SectionHeading({ eyebrow, title, subtitle, titleClass = "text-sm" }) {
+export function SectionHeading({ eyebrow, title, subtitle }) {
   return (
     <div className="min-w-0">
       {eyebrow && (
@@ -16,7 +16,7 @@ export function SectionHeading({ eyebrow, title, subtitle, titleClass = "text-sm
           {eyebrow}
         </p>
       )}
-      <h2 className={`${titleClass} font-bold text-slate-900`}>{title}</h2>
+      <h2 className="text-sm font-bold text-slate-900">{title}</h2>
       {subtitle && <p className="mt-0.5 text-xs text-slate-600">{subtitle}</p>}
     </div>
   );

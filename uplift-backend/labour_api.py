@@ -1,16 +1,6 @@
-"""LFS 2025 Labour Market Intelligence routers — additive only (Module A).
-
-Endpoints
----------
-GET /api/labour/indicators        -> indicator catalog + official national anchors
-GET /api/labour/summary           -> national KPIs, ranks, worst/best districts
-GET /api/labour/districts         -> all wide panel rows (30 districts)
-GET /api/labour/districts/{ref}   -> one district profile + national comparison
-GET /api/labour/disaggregation    -> gender / education / disability splits
-                                     (?dimension=&district=&indicator=&segment=)
-GET /api/labour/metrics           -> dashboard row-feed in the EXACT /api/metrics
-                                     contract (category "Labour Market (LFS 2025)")
-                                     so existing table/search/filter UIs consume it.
+"""LFS 2025 labour-market layer: catalog, national summary, district wide rows,
+district profiles, gender/education/disability disaggregation and a
+/api/metrics-contract row feed (category "Labour Market (LFS 2025)").
 
 Source: `district_lfs_metrics` + `district_lfs_segments` (seed_lfs.py), a
 calibrated panel anchored to RLFS 2025 national statistics (unemployment
@@ -24,7 +14,8 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from insights_api import get_db, _resolve_district
+from main import get_db
+from insights_api import _resolve_district
 from models import as_float
 import seed_lfs
 

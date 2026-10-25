@@ -73,11 +73,9 @@ check("district context carries the district's own stats",
       body["district_context"]["formal_credit"] is not None)
 top = body["results"][0]
 check("top result cites at least one reason", len(top["reasons"]) >= 1)
-rural_fit = all(
-    ("agri" in res["product_id"] or res["category"] != "subsidy") or True
-    for res in body["results"]
-)
-check("no crash + full payload shape on rural farmer profile", rural_fit)
+check("no crash + full payload shape on rural farmer profile",
+      body["profile"]["district"] == "Nyaruguru" and all(
+          set(("score", "product_id", "reasons")) <= set(res) for res in body["results"]) and len(body["results"]) > 0)
 
 # agri-input goal must rank a farmer-first product highly
 scored = {res["product_id"]: res["score"] for res in body["results"]}

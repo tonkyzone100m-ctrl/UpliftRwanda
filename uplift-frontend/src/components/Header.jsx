@@ -1,19 +1,19 @@
-import { Hexagon, MapPinned, ScanSearch } from "lucide-react";
+import { ChevronDown, Hexagon, MapPinned, ScanSearch } from "lucide-react";
 import { PortalButton } from "./MinisterialPortal";
 
 function UpliftLogoNISR() {
   return (
     <div className="flex items-center gap-3 group cursor-default">
-      <div className="relative w-11 h-11 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-700/80 flex items-center justify-center shadow-xl shadow-cyan-500/10 group-hover:border-cyan-500/55 transition-all duration-300">
+      <div className="relative h-9 w-9 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-700/80 flex items-center justify-center shadow-xl shadow-cyan-500/10 group-hover:border-cyan-500/55 transition-all duration-300 sm:h-11 sm:w-11">
         <div className="absolute inset-0 rounded-2xl bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-        <svg className="w-6 h-6 text-cyan-400 transform group-hover:scale-105 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <svg className="h-5 w-5 text-cyan-400 transform group-hover:scale-105 transition-transform duration-300 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
           <path strokeLinecap="round" strokeLinejoin="round" d="M3 13h2l3-6 4 10 3-6 3 2h3" />
           <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3" opacity="0.3" />
         </svg>
       </div>
-      <div className="flex flex-col">
+      <div className="flex min-w-0 flex-col">
         <div className="flex items-center gap-2">
-          <span className="text-lg font-extrabold tracking-tighter text-white">
+          <span className="truncate text-base font-extrabold tracking-tighter text-white sm:text-lg">
             Uplift<span className="text-cyan-400">Rwanda</span>
           </span>
           <span className="px-2 py-0.5 text-[10px] font-bold tracking-widest bg-cyan-500/10 text-cyan-400 rounded-md border border-cyan-500/20 uppercase shadow-inner">
@@ -53,7 +53,7 @@ function TabSwitcher({ tabs, activeTab, onChange, className = "" }) {
     <div
       role="tablist"
       aria-label="Dashboard views"
-      className={`flex flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-none rounded-xl border border-white/10 bg-white/[0.06] p-1 ${className}`}
+      className={`scrollbar-none hidden flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap rounded-xl border border-white/10 bg-white/[0.06] p-1 sm:flex ${className}`}
     >
       {tabs.map((tab) => {
         const active = tab.id === activeTab;
@@ -64,7 +64,7 @@ function TabSwitcher({ tabs, activeTab, onChange, className = "" }) {
             role="tab"
             aria-selected={active}
             onClick={() => onChange(tab.id)}
-            className={`shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition sm:text-xs ${
+            className={`shrink-0 rounded-lg px-3 py-2 text-[11px] font-semibold transition sm:text-xs ${
               active
                 ? "bg-slate-100 text-slate-900 shadow"
                 : "text-slate-300 hover:bg-white/10 hover:text-white"
@@ -78,13 +78,40 @@ function TabSwitcher({ tabs, activeTab, onChange, className = "" }) {
   );
 }
 
+/** Mobile-only collapsible navigation: a native dropdown that can never clip or overflow. */
+function TabSelect({ tabs, activeTab, onChange, className = "" }) {
+  return (
+    <div className={className}>
+      <label htmlFor="mobile-tab-select" className="sr-only">
+        Dashboard views
+      </label>
+      <div className="relative flex w-full items-center">
+        <select
+          id="mobile-tab-select"
+          value={activeTab}
+          onChange={(event) => onChange(event.target.value)}
+          className="w-full appearance-none truncate rounded-xl border border-white/10 bg-white/[0.06] py-2 pl-3 pr-9 text-xs font-semibold text-slate-100 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+        >
+          {tabs.map((tab) => (
+            <option key={tab.id} value={tab.id} className="bg-slate-900 text-slate-100">
+              {tab.label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-3 h-4 w-4 text-slate-400" aria-hidden="true" />
+      </div>
+    </div>
+  );
+}
+
 export default function Header({ regionCount, stats, dataPoints = 0, tabs, activeTab, onTabChange, onOpenPortal, portalSession }) {
   const yearLabel = stats?.years?.length
     ? stats.years.length > 3 ? `${stats.years[0]}–${stats.years[stats.years.length - 1]}` : stats.years.join(" · ")
     : null;
   return (
     <>
-      <div className="sticky top-0 z-40 w-full max-w-full overflow-hidden border-b border-slate-800 bg-slate-900 text-slate-100 shadow-lg">
+      {/* Mobile: plain relative (non-sticky) header; sticky resumes from sm up for larger screens */}
+      <div className="relative w-full max-w-full z-40 overflow-hidden border-b border-slate-800 bg-slate-900 text-slate-100 shadow-lg sm:sticky sm:top-0">
         <div aria-hidden="true" className="h-0.5 bg-gradient-to-r from-sky-500 via-yellow-400 to-emerald-600" />
         <nav
           aria-label="Top navigation"
@@ -102,15 +129,25 @@ export default function Header({ regionCount, stats, dataPoints = 0, tabs, activ
           </div>
 
           {tabs && tabs.length > 0 && (
-            <TabSwitcher
-              tabs={tabs}
-              activeTab={activeTab}
-              onChange={onTabChange}
-              className="order-3 w-full min-w-0 sm:order-2 sm:w-auto"
-            />
+            <>
+              {/* Mobile: collapsible native dropdown (fits any screen, touch friendly) */}
+              <TabSelect
+                tabs={tabs}
+                activeTab={activeTab}
+                onChange={onTabChange}
+                className="order-3 flex-none w-full min-w-0 sm:hidden"
+              />
+              {/* sm and up: auto-scrolling horizontal tab strip */}
+              <TabSwitcher
+                tabs={tabs}
+                activeTab={activeTab}
+                onChange={onTabChange}
+                className="order-3 w-full min-w-0 sm:order-2 sm:w-auto sm:flex-1"
+              />
+            </>
           )}
 
-          <div className={`flex items-center gap-3 ${tabs ? "order-2 sm:order-3" : ""}`}>
+          <div className={`flex shrink-0 items-center gap-3 ${tabs ? "order-2 sm:order-3" : ""}`}>
             <PortalButton onOpen={onOpenPortal} session={portalSession} />
           </div>
         </nav>

@@ -22,7 +22,6 @@ export default function ScenarioLab() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [labDistricts, setLabDistricts] = useState([]);
-  const bodyRef = useRef({ ...INITIAL_DELTAS });
   const debounce = useRef(null);
 
   useEffect(() => {
@@ -93,7 +92,7 @@ export default function ScenarioLab() {
               name="sim-scope"
               checked={scope === "national"}
               onChange={() => setScope("national")}
-              className="accent-emerald-600"
+              className="h-4 w-4 accent-emerald-600"
             />
             National · weighted mean
           </label>
@@ -103,7 +102,7 @@ export default function ScenarioLab() {
               name="sim-scope"
               checked={scope === "district"}
               onChange={() => setScope("district")}
-              className="accent-emerald-600"
+              className="h-4 w-4 accent-emerald-600"
             />
             Target district
             <select
@@ -143,7 +142,6 @@ export default function ScenarioLab() {
                   onChange={(e) => {
                     const next = Number(e.target.value);
                     setDeltas((d) => ({ ...d, [lever.key]: next }));
-                    bodyRef.current[lever.key] = next;
                   }}
                   className="mt-1 w-full accent-emerald-600"
                 />

@@ -312,8 +312,6 @@ export const METRIC_DEFS = [
   },
 ];
 
-export const METRIC_COUNT = METRIC_DEFS.length;
-
 export function resolveMetricDef(row) {
   return METRIC_DEFS.find((def) => entryMatches(row, def)) ?? null;
 }

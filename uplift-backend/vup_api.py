@@ -1,15 +1,6 @@
-"""VUP beneficiary & operations routers — additive only (Module B).
-
-Endpoints
----------
-GET /api/vup/indicators        -> catalog: five components + profiling metrics,
-                                  labelled OFFICIAL (EICV7 VUP) vs MODELLED
-GET /api/vup/summary           -> national component totals, poverty profile
-                                  among beneficiaries, disbursement mix + timeliness
-GET /api/vup/districts         -> all district rows with derived per-capita caseloads
-GET /api/vup/districts/{ref}   -> one district profile + national comparison
-GET /api/vup/metrics           -> dashboard row-feed in the EXACT /api/metrics
-                                  contract (category "VUP Social Protection")
+"""VUP social-protection layer: five-component catalog, national summary,
+district caseloads, district profiles and a /api/metrics-contract row feed
+(category "VUP Social Protection").
 
 Source: `district_vup_metrics` (seed_vup.py). Poverty among beneficiaries is
 the OFFICIAL EICV7 VUP 2025 anchor (41%); operational metrics are the
@@ -22,7 +13,8 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from insights_api import get_db, _resolve_district
+from main import get_db
+from insights_api import _resolve_district
 from models import as_float, as_int
 import seed_vup
 

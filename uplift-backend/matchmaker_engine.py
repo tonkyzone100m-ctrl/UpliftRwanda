@@ -197,7 +197,7 @@ def match(profile: dict, context: Optional[dict], top_n: int = 6) -> list[dict]:
             "digital": product["digital"],
             "evidence": product["evidence"],
             "score": score,
-            "reasons": [{k: v for k, v in r.items()} for r in reasons],
+            "reasons": [dict(r) for r in reasons],
             "district_boosts": boosts,
         })
     results.sort(key=lambda r: r["score"], reverse=True)

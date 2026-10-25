@@ -12,15 +12,6 @@ export function CategoryBadge({ categoryId, category, className = "" }) {
   );
 }
 
-export function CategoryDot({ categoryId, className = "" }) {
-  return (
-    <span
-      aria-hidden="true"
-      className={`h-1.5 w-1.5 shrink-0 rounded-full ${categoryStyle(categoryId).dot} ${className}`}
-    />
-  );
-}
-
 export function DistrictBadge({ district }) {
   return (
     <span className="inline-flex max-w-full items-center gap-1.5 truncate rounded-md bg-slate-50 px-2 py-0.5 text-[11px] font-bold text-slate-700 ring-1 ring-inset ring-slate-200">

@@ -22,7 +22,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from insights_api import get_db
+from main import get_db
 from simulation import DRIVERS, HORIZON_DEFAULT, run_scenario
 
 router = APIRouter(prefix="/api/v1", tags=["simulation"])

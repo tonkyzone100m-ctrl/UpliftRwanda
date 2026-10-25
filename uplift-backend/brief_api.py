@@ -20,7 +20,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse, Response
 
-from insights_api import get_db
+from main import get_db
 from brief_pdf import render as render_pdf
 from brief_report import build_report
 

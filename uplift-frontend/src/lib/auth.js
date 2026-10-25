@@ -80,13 +80,12 @@ async function request(path, options = {}) {
     body = text ? { raw: text } : null;
   }
   if (!res.ok) {
-    console.error(
-      `[uplift-api] ${options.method ?? "GET"} ${path} -> ${res.status}`,
-      {
-        requestHeaders: redactedHeaders(options.headers),
-        responseText: text.slice(0, 480),
-      },
-    );
+    if (import.meta.env.DEV) {
+      console.error(
+        `[uplift-api] ${options.method ?? "GET"} ${path} -> ${res.status}`,
+        { requestHeaders: redactedHeaders(options.headers), responseText: text.slice(0, 480) },
+      );
+    }
     const detail = body?.detail;
     const code = typeof detail === "object" ? detail?.code : null;
     const message =
@@ -101,12 +100,6 @@ export function loginAdmin(username, password) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password }),
-  });
-}
-
-export function fetchAdminSession(token) {
-  return request("/api/auth/me", {
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
 }
 

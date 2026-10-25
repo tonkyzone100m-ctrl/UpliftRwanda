@@ -26,7 +26,7 @@ import {
   fetchRdhsDistricts,
   fetchVupDistricts,
 } from "./lib/api";
-import { toDisplayRows, filterDisplayRows } from "./lib/filters";
+import { toDisplayRows, filterDisplayRows, hasActiveFilters } from "./lib/filters";
 import { buildRegions, computeNationalStats } from "./lib/stats";
 import { getSession } from "./lib/auth";
 
@@ -68,33 +68,25 @@ const TABS = [
   { id: "explorer", label: "District Explorer" },
 ];
 
+const TAB_BY_HASH = Object.fromEntries(TABS.map((t) => [`#${t.id}`, t.id]));
+
 /** Grey pulse block shown while a lazy panel is loading. */
 function PanelSkeleton({ className, label }) {
   return <div role="status" aria-label={label} className={`animate-pulse bg-slate-200/70 ${className}`} />;
 }
 
-const TAB_BY_HASH = {
-  "#dashboard": "dashboard",
-  "#lab": "lab",
-  "#rdhs": "rdhs",
-  "#labour": "labour",
-  "#vup": "vup",
-  "#inclusion": "inclusion",
-  "#explorer": "explorer",
-};
-
 export default function App() {
   const [status, setStatus] = useState("loading");
   const [rows, setRows] = useState([]);
-  const [cfsvaRows, setCfsvaRows] = useState([]); // isolated CFSVA 2024 layer
-  const [rdhsRows, setRdhsRows] = useState([]);   // isolated RDHS 2025 layer
+  const [cfsvaRows, setCfsvaRows] = useState([]);
+  const [rdhsRows, setRdhsRows] = useState([]);
   const [rdhsMounted, setRdhsMounted] = useState(
-    () => TAB_BY_HASH[window.location.hash] === "rdhs", // deep-link straight into the RDHS tab
+    () => TAB_BY_HASH[window.location.hash] === "rdhs", // deep links like #rdhs skip the default tab
   );
   const [labourRows, setLabourRows] = useState([]);
   const [vupRows, setVupRows] = useState([]);
-  const [financeRows, setFinanceRows] = useState([]); // inclusion rows for the matchmaker (Module C)
-  const [districtNames, setDistrictNames] = useState([]); // brief/district pickers
+  const [financeRows, setFinanceRows] = useState([]);
+  const [districtNames, setDistrictNames] = useState([]);
   const [dataError, setDataError] = useState(null);
   const [refreshError, setRefreshError] = useState(null);
   const [updatedAt, setUpdatedAt] = useState(null);
@@ -102,19 +94,18 @@ export default function App() {
   const [portalOpen, setPortalOpen] = useState(false);
   const [portalEpoch, setPortalEpoch] = useState(0);
   const [portalSession, setPortalSession] = useState(syncPortalSession);
-  const [targetsVersion, setTargetsVersion] = useState(0); // re-key PolicyInsights after ministerial target edits
+  const [targetsVersion, setTargetsVersion] = useState(0);
   const [activeTab, setActiveTab] = useState(() => TAB_BY_HASH[window.location.hash] ?? "dashboard");
 
   // Hash-synced SPA tabs (no reloads; deep links like #lab / #rdhs / #explorer work).
   const changeTab = (id) => {
     setActiveTab(id);
-    if (id === "rdhs") setRdhsMounted(true); // first visit mounts; later visits keep state
-    try {
-      history.replaceState(null, "", id === "dashboard" ? location.pathname + location.search : `#${id}`);
-    } catch {
-      /* reserved for non-HTTP embeddings */
-    }
+    if (id === "rdhs") setRdhsMounted(true);
+    history.replaceState(null, "", id === "dashboard" ? location.pathname + location.search : `#${id}`);
   };
+
+  const toggleDistrict = (name) =>
+    setFilters((f) => ({ ...f, district: f.district === name ? "" : name }));
 
   const rowTotalRef = useRef(0);
 
@@ -126,16 +117,14 @@ export default function App() {
       setUpdatedAt(new Date());
       setRefreshError(null);
       setStatus("ready");
-      return true;
     } catch (error) {
-      if (error?.name === "AbortError") return false;
+      if (error?.name === "AbortError") return;
       if (rowTotalRef.current > 0) {
         setRefreshError(error);
       } else {
         setStatus("error");
         setDataError(error);
       }
-      return false;
     }
   }, []);
 
@@ -167,26 +156,21 @@ export default function App() {
     if (data) setFinanceRows(data);
   }, []);
 
+  // Optional data layers resolve to null on failure, so panels fall back to their
+  // "not seeded yet" state instead of crashing the dashboard. Only the core
+  // metrics layer drives `status`.
   useEffect(() => {
     const controller = new AbortController();
-    // Optional data layers must never crash the dashboard: swallow AbortError and
-    // downgrade any other failure to a console warning.
-    const runQuiet = (fetcher) => {
-      try {
-        Promise.resolve(fetcher()).catch((err) => {
-          if (err?.name === "AbortError") return; // unmount/refresh abort — expected
-          console.warn("Optional data layer failed to load:", err);
-        });
-      } catch (err) {
-        if (err?.name !== "AbortError") console.warn("Optional data layer failed to load:", err);
-      }
-    };
-    runQuiet(() => fetchData(controller.signal));
-    runQuiet(() => fetchCfsva(controller.signal));
-    runQuiet(() => fetchRdhs(controller.signal));
-    runQuiet(() => fetchLabour(controller.signal));
-    runQuiet(() => fetchVup(controller.signal));
-    runQuiet(() => fetchFinance(controller.signal));
+    const quiet = (fn) =>
+      fn().catch((err) => {
+        if (err?.name !== "AbortError") console.warn("Data layer failed to load:", err);
+      });
+    quiet(() => fetchData(controller.signal));
+    quiet(() => fetchCfsva(controller.signal));
+    quiet(() => fetchRdhs(controller.signal));
+    quiet(() => fetchLabour(controller.signal));
+    quiet(() => fetchVup(controller.signal));
+    quiet(() => fetchFinance(controller.signal));
     return () => controller.abort();
   }, [fetchData, fetchCfsva, fetchRdhs, fetchLabour, fetchVup, fetchFinance]);
 
@@ -207,7 +191,7 @@ export default function App() {
     [displayRows, filters],
   );
 
-  const hasFilters = Boolean(filters.query || filters.categoryId !== "all" || filters.district);
+  const hasFilters = hasActiveFilters(filters);
 
   const portalProps = {
     onOpenPortal: () => {
@@ -234,7 +218,7 @@ export default function App() {
 
   if (status === "loading") {
     return (
-      <div className="flex min-h-screen w-full max-w-full flex-col overflow-x-clip bg-slate-100">
+      <div className="flex min-h-screen w-full max-w-full flex-col overflow-x-hidden bg-slate-100">
         <Header regionCount={0} stats={null} dataPoints={0} {...portalProps} />
         <main className="mx-auto w-full max-w-7xl flex-1 px-3 py-6 sm:px-6 lg:px-8">
           <LoadingState />
@@ -247,7 +231,7 @@ export default function App() {
   if (status === "error" || regions.length === 0) {
     const noData = status === "ready";
     return (
-      <div className="flex min-h-screen w-full max-w-full flex-col overflow-x-clip bg-slate-100">
+      <div className="flex min-h-screen w-full max-w-full flex-col overflow-x-hidden bg-slate-100">
         <Header regionCount={0} stats={null} dataPoints={0} {...portalProps} />
         <main className="mx-auto w-full max-w-7xl flex-1 space-y-6 px-3 py-10 sm:px-6 lg:px-8">
           {noData ? (
@@ -287,7 +271,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex min-h-screen w-full max-w-full flex-col overflow-x-clip bg-slate-100">
+    <div className="flex min-h-screen w-full max-w-full flex-col overflow-x-hidden bg-slate-100">
       <Header
         regionCount={regions.length}
         stats={stats}
@@ -301,8 +285,6 @@ export default function App() {
       <main className="mx-auto w-full max-w-7xl flex-1 px-3 py-6 sm:px-6 lg:px-8">
         {refreshError && <ErrorBanner error={refreshError} onDismiss={() => setRefreshError(null)} />}
 
-        {/* Tab 1 — National Intelligence Dashboard (kept mounted: instant tab switches,
-            sliders/map state survive, Leaflet only ever initialises once). */}
         <div className={activeTab === "dashboard" ? "space-y-6" : "hidden space-y-6"}>
           <SummaryCards stats={stats} />
 
@@ -312,15 +294,13 @@ export default function App() {
                 <DistrictMap
                   regions={regions}
                   selectedDistrict={filters.district}
-                  onSelectDistrict={(name) =>
-                    setFilters((f) => ({ ...f, district: f.district === name ? "" : name }))
-                  }
+                  onSelectDistrict={toggleDistrict}
                 />
               </Suspense>
             </div>
 
             <div className="min-w-0 space-y-4">
-              <CFSVAPanel rows={cfsvaRows} stats={stats} selectedDistrict={filters.district} />
+              <CFSVAPanel rows={cfsvaRows} stats={stats} />
             </div>
           </div>
 
@@ -331,66 +311,53 @@ export default function App() {
             fallbackStats={stats}
           />
 
-          {/* Module D — one-click executive brief (national or focused district) */}
           <Suspense fallback={<PanelSkeleton className="h-24 rounded-2xl" label="Loading brief card" />}>
             <BriefCard districts={districtNames} selectedDistrict={filters.district} />
           </Suspense>
         </div>
 
-        {/* Tab 2 — Policy Scenario Lab */}
         <div className={activeTab === "lab" ? "" : "hidden"}>
           <ScenarioLab />
         </div>
 
-        {/* Tab 3 — RDHS 2025 Living Standards (lazy; mounted on first visit) */}
         {rdhsMounted && (
           <div className={activeTab === "rdhs" ? "space-y-6" : "hidden space-y-6"}>
             <Suspense fallback={<PanelSkeleton className="h-96 rounded-2xl" label="Loading RDHS 2025 panel" />}>
               <RDHSPanel
                 rows={rdhsRows}
                 selectedDistrict={filters.district}
-                onSelectDistrict={(name) =>
-                  setFilters((f) => ({ ...f, district: f.district === name ? "" : name }))
-                }
+                onSelectDistrict={toggleDistrict}
               />
             </Suspense>
           </div>
         )}
 
-        {/* Tab — LFS 2025 Labour Market (Module A; lazy) */}
         <div className={activeTab === "labour" ? "space-y-6" : "hidden space-y-6"}>
           <Suspense fallback={<PanelSkeleton className="h-96 rounded-2xl" label="Loading labour-market panel" />}>
             <LabourPanel
               rows={labourRows}
               selectedDistrict={filters.district}
-              onSelectDistrict={(name) =>
-                setFilters((f) => ({ ...f, district: f.district === name ? "" : name }))
-              }
+              onSelectDistrict={toggleDistrict}
             />
           </Suspense>
         </div>
 
-        {/* Tab — VUP Social Protection (Module B; lazy) */}
         <div className={activeTab === "vup" ? "space-y-6" : "hidden space-y-6"}>
           <Suspense fallback={<PanelSkeleton className="h-96 rounded-2xl" label="Loading VUP panel" />}>
             <VupPanel
               rows={vupRows}
               selectedDistrict={filters.district}
-              onSelectDistrict={(name) =>
-                setFilters((f) => ({ ...f, district: f.district === name ? "" : name }))
-              }
+              onSelectDistrict={toggleDistrict}
             />
           </Suspense>
         </div>
 
-        {/* Tab — Inclusion & Matchmaker (Module C; lazy) */}
         <div className={activeTab === "inclusion" ? "space-y-6" : "hidden space-y-6"}>
           <Suspense fallback={<PanelSkeleton className="h-96 rounded-2xl" label="Loading inclusion panel" />}>
             <InclusionPanel rows={financeRows} selectedDistrict={filters.district} />
           </Suspense>
         </div>
 
-        {/* Tab 4 — District Explorer */}
         <div className={activeTab === "explorer" ? "space-y-6" : "hidden space-y-6"}>
           <Filters
             regions={regions}

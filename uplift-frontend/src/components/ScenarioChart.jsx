@@ -32,7 +32,7 @@ export default function ScenarioChart({ outcomes, uncertainty = {}, labelWidth =
         role="img"
         aria-label="Baseline versus projected policy scenario outcomes"
         viewBox={`0 0 ${rows.length * (labelWidth + 14) + 8} ${chartH + 34}`}
-        style={{ maxWidth: 900, width: "100%" }}
+        style={{ maxWidth: 900, minWidth: 560, width: "100%" }}
       >
         {rows.map(([key, spec], rowIndex) => {
           const originX = rowIndex * (labelWidth + 14) + 8;

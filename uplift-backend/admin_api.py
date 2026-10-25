@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 
 from auth import get_current_admin
 from models import NationalTarget, Region, Indicator, SurveyMetric
-from insights_api import get_db
+from main import get_db
 from targets import TARGET_DEFAULTS, effective_targets, targets_metadata, validate_targets, now_stamp
 
 logger = logging.getLogger("uplift_admin")

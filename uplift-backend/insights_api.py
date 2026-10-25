@@ -14,6 +14,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from auth import get_current_admin
+from main import get_db
 from models import as_int, as_float
 from policy import generate_insights
 from targets import effective_targets
@@ -52,17 +53,6 @@ INDICATOR_QUERY = text("""
 """)
 
 
-def get_db():
-    """Late binding so monkeypatching main.SessionLocal covers insight routes too."""
-    from main import SessionLocal
-
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
 @router.get("/districts")
 def list_districts(db: Session = Depends(get_db)):
     rows = db.execute(DISTRICT_INDEX_QUERY).fetchall()
@@ -94,7 +84,7 @@ def list_indicators(db: Session = Depends(get_db)):
 
 def _resolve_district(db, ref):
     """Accepts a numeric region id or a case-insensitive district name."""
-    if isinstance(ref, int) or (isinstance(ref, str) and ref.isdigit()):
+    if isinstance(ref, str) and ref.isdigit():
         query = text(
             "SELECT id, district, province, area_type, population_weight "
             "FROM regions WHERE id = :ref"

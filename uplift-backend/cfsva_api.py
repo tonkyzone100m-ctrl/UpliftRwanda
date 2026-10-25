@@ -1,22 +1,12 @@
-"""CFSVA 2024 routers — additive only (no existing endpoint is modified).
-
-Endpoints
----------
-GET /api/cfsva/indicators         -> indicator catalog + national anchors
-GET /api/cfsva/districts          -> all district rows (joined with region info)
-GET /api/cfsva/districts/{ref}    -> one district row (id or name, any case)
-GET /api/cfsva/metrics            -> dashboard row-feed in the EXACT /api/metrics
-                                     contract (category "Food Security"), so the
-                                     existing table/search/filter UIs consume it
-                                     without a single change.
-"""
+"""CFSVA 2024 food-security layer: indicator catalog, district rows and a
+/api/metrics-contract row feed (category "Food Security")."""
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from insights_api import get_db
+from main import get_db
 from seed_cfsva import ANCHORS
 
 router = APIRouter(prefix="/api/cfsva", tags=["cfsva"])
@@ -131,7 +121,7 @@ def cfsva_metrics(db: Session = Depends(get_db)):
 
 @router.get("/districts/{ref}")
 def cfsva_district(ref: str, db: Session = Depends(get_db)):
-    if isinstance(ref, int) or ref.isdigit():
+    if ref.isdigit():
         where = "WHERE r.id = :rid"
         params = {"rid": int(ref)}
     else:

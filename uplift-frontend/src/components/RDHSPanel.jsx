@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import { Activity, Wallet, Smartphone, Landmark, Zap } from "lucide-react";
 import SectionCard from "./Card";
+import { weightedMean } from "../lib/format";
 
 const PROVINCE_COLORS = {
   "City of Kigali": "#0ea5e9",
@@ -54,18 +55,6 @@ const QUINTILES = [
   { key: "wealth_q5", label: "Richest", fill: "#047857" },
 ];
 
-function hhWeightedMean(rows, key) {
-  let wSum = 0;
-  let vSum = 0;
-  for (const row of rows) {
-    const w = row.households ?? 0;
-    const v = row[key];
-    if (v == null || w <= 0) continue;
-    wSum += w;
-    vSum += v * w;
-  }
-  return wSum > 0 ? vSum / wSum : null;
-}
 
 function pearson(pairs) {
   if (pairs.length < 3) return null;
@@ -96,14 +85,6 @@ export default function RDHSPanel({
 }) {
   const [province, setProvince] = useState("");
   const [indicator, setIndicator] = useState("bank_account_pct");
-  const [barMode, setBarMode] = useState(false); // alternate direction (smaller screens)
-
-  useEffect(() => {
-    const onResize = () => setBarMode(window.innerWidth >= 768);
-    onResize();
-    window.addEventListener("resize", onResize, { passive: true });
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
 
   const provinces = useMemo(
     () => [...new Set(rows.map((r) => r.province))].sort(),
@@ -133,7 +114,7 @@ export default function RDHSPanel({
 
   const wealthData = useMemo(() => {
     if (!scoped.length) return [];
-    const national = QUINTILES.map((q) => hhWeightedMean(scoped, q.key));
+    const national = QUINTILES.map((q) => weightedMean(scoped, q.key, "households"));
     const scopeRow = {
       name: scopedDistrict ? "In-scope mean" : "All in scope",
       ...Object.fromEntries(QUINTILES.map((q, i) => [q.label, national[i]])),
@@ -210,7 +191,7 @@ export default function RDHSPanel({
         {KPI_TILES.map((tile, i) => {
           const Icon = tile.icon;
           const focused = scopedDistrict?.[tile.key];
-          const mean = hhWeightedMean(scoped, tile.key);
+          const mean = weightedMean(scoped, tile.key, "households");
           const tone = ["emerald", "amber", "sky", "violet"][i];
           const tones = {
             emerald: "text-emerald-600 bg-emerald-50",
@@ -300,7 +281,7 @@ export default function RDHSPanel({
               ))}
             </select>
           </div>
-          <div className={barMode ? "h-[420px] overflow-y-auto pr-1" : "max-h-[420px]"}>
+          <div className="max-h-[420px] overflow-y-auto pr-1">
             <ResponsiveContainer width="100%" height={Math.max(220, barData.length * 27 + 30)}>
               <BarChart
                 data={barData}
@@ -308,27 +289,18 @@ export default function RDHSPanel({
                 margin={{ top: 4, right: 28, bottom: 0, left: 0 }}
               >
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
-                {barMode ? (
-                  <>
-                     <XAxis
-                      type="number"
-                      domain={[0, Math.ceil(Math.max(10, ...barData.map((d) => d.value)) * 1.15)]}
-                      tick={{ fontSize: 10, fill: "#64748b" }}
-                    />
-                    <YAxis type="category" dataKey="district" width={92} tick={{ fontSize: 10, fill: "#334155" }} />
-                  </>
-                ) : (
-                  <>
-                    <XAxis type="category" dataKey="district" tick={false} hide />
-                    <YAxis type="number" tick={{ fontSize: 9, fill: "#64748b" }} width={40} />
-                  </>
-                )}
+                <XAxis
+                  type="number"
+                  domain={[0, Math.ceil(Math.max(10, ...barData.map((d) => d.value)) * 1.15)]}
+                  tick={{ fontSize: 10, fill: "#64748b" }}
+                />
+                <YAxis type="category" dataKey="district" width={92} tick={{ fontSize: 10, fill: "#334155" }} />
                 <Tooltip
                   formatter={(v) => [`${Number(v).toFixed(1)} ${indDef.unit}`, indDef.label]}
                   labelStyle={{ fontWeight: 700, fontSize: 11 }}
                   contentStyle={{ fontSize: 12, borderRadius: 8 }}
                 />
-                <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={barMode ? 16 : 18}>
+                <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={16}>
                   {barData.map((d) => (
                     <Cell
                       key={d.district}
@@ -370,7 +342,7 @@ export default function RDHSPanel({
             <ResponsiveContainer width="100%" height={170}>
               <BarChart data={wealthData} layout="vertical" margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
-                <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 9, fill: "#64748b" }} />
+                <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10, fill: "#64748b" }} />
                 <YAxis
                   type="category"
                   dataKey="name"
@@ -413,22 +385,22 @@ export default function RDHSPanel({
                   dataKey="x"
                   name="Bank account"
                   domain={[0, "dataMax + 5"]}
-                  tick={{ fontSize: 9, fill: "#64748b" }}
-                  label={{ value: "bank account %", fontSize: 9, position: "insideBottom", offset: -8, fill: "#64748b" }}
+                  tick={{ fontSize: 10, fill: "#64748b" }}
+                  label={{ value: "bank account %", fontSize: 10, position: "insideBottom", offset: -8, fill: "#64748b" }}
                 />
                 <YAxis
                   dataKey="y"
                   name="Bottom-40% wealth share"
                   width={38}
-                  tick={{ fontSize: 9, fill: "#64748b" }}
+                  tick={{ fontSize: 10, fill: "#64748b" }}
                 />
                 <ReferenceLine
-                  x={hhWeightedMean(scoped, "bank_account_pct")}
+                  x={weightedMean(scoped, "bank_account_pct", "households")}
                   stroke="#64748b"
                   strokeDasharray="4 3"
                 />
                 <ReferenceLine
-                  y={hhWeightedMean(scoped, "wealth_p40_pct")}
+                  y={weightedMean(scoped, "wealth_p40_pct", "households")}
                   stroke="#64748b"
                   strokeDasharray="4 3"
                 />

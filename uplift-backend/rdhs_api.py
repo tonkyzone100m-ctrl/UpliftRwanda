@@ -1,14 +1,5 @@
-"""RDHS 2025 routers — additive only (no existing endpoint is modified).
-
-Endpoints
----------
-GET /api/rdhs/indicators         -> indicator catalog + population-weighted national means
-GET /api/rdhs/districts          -> all district rows (joined with region info)
-GET /api/rdhs/districts/{ref}    -> one district row (id or name, any case)
-GET /api/rdhs/metrics            -> dashboard row-feed in the EXACT /api/metrics
-                                    contract (category "Living Standards (RDHS
-                                    2025)"), so the existing table/search/filter
-                                    UIs consume it without a single change.
+"""RDHS 2025 living-standards layer: catalog, district rows and a
+/api/metrics-contract row feed (category "Living Standards (RDHS 2025)").
 
 Source: RWHR91FL (household recode) + RWBR91FL (birth recode), aggregated by
 preprocess_rdhs.py into db/rdhs/rdhs_2025_district_panel.json and seeded into
@@ -22,7 +13,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from insights_api import get_db
+from main import get_db
 import seed_rdhs
 
 router = APIRouter(prefix="/api/rdhs", tags=["rdhs"])

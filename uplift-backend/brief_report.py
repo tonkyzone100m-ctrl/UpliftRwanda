@@ -331,8 +331,9 @@ def build_report(db: Session, ref: Optional[str]) -> tuple[Optional[dict], Optio
         "sections": sections,
         "verdicts": [{
             "id": v.get("id"), "severity": v.get("severity"),
-            "pillar": v.get("pillar"), "headline": v.get("headline"),
-            "action": v.get("action"),
+            "pillar": v.get("pillar"),
+            "headline": v.get("title") or v.get("headline"),
+            "action": v.get("description") or v.get("action"),
         } for v in verdicts],
         "thresholds": payload.get("thresholds"),
         "recommendations": recommendations,

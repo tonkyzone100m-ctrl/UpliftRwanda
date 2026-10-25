@@ -36,6 +36,11 @@ export function filterDisplayRows(displayRows, { query, categoryId, district }) 
   );
 }
 
+/** Whether the user has narrowed the table from its default "everything" view. */
+export function hasActiveFilters({ query, categoryId, district }) {
+  return Boolean(query || categoryId !== "all" || district);
+}
+
 export function categoryOptions(displayRows) {
   const counts = new Map();
   for (const row of displayRows) {

@@ -13,13 +13,10 @@ from sqlalchemy import URL, create_engine, text
 from sqlalchemy.exc import DBAPIError, SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
-from models import as_int, as_float
+from models import Base, NationalTarget, as_int, as_float
 
 logger = logging.getLogger("uplift_api")
 
-# ---------------------------------------------------------------------------
-# 1. Connection configuration
-# ---------------------------------------------------------------------------
 DB_NAME = os.getenv("DB_NAME", "uplift_rwanda_db")
 DB_USER = os.getenv("DB_USER", "it-eng")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "uplift")  # local default; deployments override via env
@@ -56,6 +53,15 @@ engine = create_engine(
     },
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+def get_db():
+    """Request-scoped session; connections are always returned to the pool."""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 def _ensure_seed_data(engine) -> None:
@@ -108,14 +114,12 @@ def _ensure_seed_data(engine) -> None:
 
 
 try:
-    from models import NationalTarget  # noqa: F401
-    from models import Base
     Base.metadata.create_all(engine, tables=[NationalTarget.__table__])
     try:
         _ensure_seed_data(engine)
     except Exception as exc:  # seed failure must not block API startup
         logger.warning(
-            "auto-seed skipped (%s); run `python3 seed_data.py && python3 seed_cfsva.py` manually.", exc
+            "auto-seed skipped (%s); run any of the seed_*.py scripts manually.", exc
         )
     try:
         from seed_data import ensure_indicator_catalog
@@ -187,31 +191,15 @@ app.include_router(matchmaker_router)
 from brief_api import router as brief_router  # noqa: E402
 app.include_router(brief_router)
 
-# ---------------------------------------------------------------------------
-# 2. Session lifecycle + JSON error mapping (internal failures never leak)
-# ---------------------------------------------------------------------------
-
-def get_db():
-    """Request-scoped session; connections are always returned to the pool."""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
 def _db_hint(exc: DBAPIError) -> str:
     message = str(getattr(exc, "orig", exc)).lower()
     if "no password supplied" in message or "password authentication failed" in message:
-        return (
-            "PostgreSQL rejected the credentials for user 'it-eng'. Ensure the user "
-            "has proper permissions or export DB_PASSWORD if a password is required."
-        )
+        return "PostgreSQL rejected the credentials. Export DB_PASSWORD or fix DATABASE_URL."
     if "could not connect" in message or "connection refused" in message:
-        return "PostgreSQL is not reachable. Start it with: sudo systemctl start postgresql."
+        return "PostgreSQL is not reachable. Start the database service first."
     if "does not exist" in message:
         return "Check that DB_NAME is correct and the database is seeded."
-    return "Check DATABASE_URL / DB_* environment variables and pg_hba.conf."
+    return "Check DATABASE_URL / DB_* environment variables."
 
 
 @app.exception_handler(DBAPIError)
@@ -242,10 +230,6 @@ async def database_generic_handler(request: Request, exc: SQLAlchemyError):
             "path": request.url.path,
         },
     )
-
-# ---------------------------------------------------------------------------
-# 3. Endpoints
-# ---------------------------------------------------------------------------
 
 @app.get("/")
 def read_root():

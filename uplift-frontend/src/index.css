@@ -43,6 +43,13 @@ body {
   }
 }
 
+/* compact, wrapping map tooltips */
+.uplift-map-tip {
+  font: 600 11px/1.45 var(--font-sans);
+  max-width: 220px;
+  white-space: normal;
+}
+
 .animate-pulse-soft {
   animation: pulse-soft 1.8s ease-in-out infinite;
 }

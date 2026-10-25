@@ -52,7 +52,7 @@ export function ErrorBanner({ error, onDismiss }) {
         <strong className="font-semibold">Live refresh failed:</strong> {error?.message ?? "unknown error"} — showing the last successful snapshot.
       </span>
       <div className="flex shrink-0 items-center gap-2">
-        <button type="button" onClick={onDismiss} aria-label="Dismiss refresh error" className="rounded-md p-1 text-amber-700 transition hover:bg-amber-100">
+        <button type="button" onClick={onDismiss} aria-label="Dismiss refresh error" className="rounded-md p-2 text-amber-700 transition hover:bg-amber-100">
           <X className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
