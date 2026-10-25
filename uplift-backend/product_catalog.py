@@ -1,4 +1,4 @@
-"""UpliftRwanda Opportunity & Credit Matchmaker — product catalog (Module C).
+"""UpliftRwanda Opportunity & Credit Matchmaker — product catalog.
 
 A curated catalog of live Rwandan financial-inclusion products and social-protection
 windows, each described with the eligibility signals the FinScope 2024 / EICV7

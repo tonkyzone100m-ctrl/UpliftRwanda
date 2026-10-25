@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""VUP beneficiary & operations module integration tests (Module B).
+"""VUP beneficiary & operations module integration tests.
 
 Runs the full VUP flow on SQLite:
     python3 test_vup.py

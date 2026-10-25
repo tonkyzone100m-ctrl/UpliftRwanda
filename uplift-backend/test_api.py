@@ -330,4 +330,4 @@ if __name__ == "__main__":
     if failures:
         print(f"{len(failures)} FAILURES ❌ -> {failures}")
         sys.exit(1)
-    print("ALL API TESTS PASSED ✅")
+    print("ALL API TESTS PASSED")

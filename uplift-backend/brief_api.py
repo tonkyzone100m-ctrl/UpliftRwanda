@@ -1,4 +1,4 @@
-"""Executive Policy Brief endpoints (Module D).
+"""Executive Policy Brief endpoints.
 
 Endpoints
 ---------

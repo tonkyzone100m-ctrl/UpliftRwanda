@@ -1,4 +1,4 @@
-"""Opportunity & Credit Matchmaker routers (Module C) + inclusion dashboard.
+"""Opportunity & Credit Matchmaker routers + inclusion dashboard.
 
 Endpoints
 ---------
@@ -7,7 +7,7 @@ POST /api/matchmaker/recommendations -> explainable ranked products for a profil
 GET  /api/inclusion/summary        -> FinScope 2024 national KPIs + health tiers
 GET  /api/inclusion/districts      -> per-district inclusion & financial-health rows
 
-Recommendations join `district_vup_metrics` (Module B) and the canonical
+Recommendations join `district_vup_metrics` and the canonical
 FinScope/EICV7 `survey_metrics` vintage with `_load_metric_map` so every
 reason cites the citizen's own district profile.
 """

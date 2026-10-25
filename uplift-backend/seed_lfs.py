@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""LFS 2025 seeder — labour-market layer (Module A: Labour Market Intelligence).
+"""LFS 2025 seeder — labour-market layer.
 
 NON-DESTRUCTIVE companion to seed_data.py. Fills:
   * district_lfs_metrics   — wide panel, one row per district x 2025 vintage

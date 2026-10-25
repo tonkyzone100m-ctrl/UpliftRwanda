@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""LFS 2025 labour module integration tests (Module A).
+"""LFS 2025 labour module integration tests.
 
 Runs the full labour-market flow on SQLite:
     python3 test_labour.py

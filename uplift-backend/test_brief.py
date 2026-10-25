@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Executive Policy Brief generator integration tests (Module D).
+"""Executive Policy Brief generator integration tests.
 
 Runs the brief flow (PDF + CSV) on SQLite:
     python3 test_brief.py

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Opportunity & Credit Matchmaker integration tests (Module C).
+"""Opportunity & Credit Matchmaker integration tests.
 
 Runs the matchmaker flow on SQLite:
     python3 test_matchmaker.py

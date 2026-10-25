@@ -1,4 +1,4 @@
-"""Executive Policy Brief PDF renderer (Module D).
+"""Executive Policy Brief PDF renderer.
 
 Turns the brief_report.py payload into a print-ready A4 brief with reportlab
 (platypus): banner, stat tables per survey layer, policy-engine verdicts with

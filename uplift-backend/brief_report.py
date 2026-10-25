@@ -1,4 +1,4 @@
-"""Executive Policy Brief assembler (Module D) — data layer, format-agnostic.
+"""Executive Policy Brief assembler — data layer, format-agnostic.
 
 Builds a plain-data report dict for any district (or the national view) by
 joining every seeded NISR layer:
@@ -6,8 +6,8 @@ joining every seeded NISR layer:
     section            source layer
     -------------------------------------------------
     headline           survey_metrics (FinScope 2024 / EICV7, latest vintage)
-    labour             district_lfs_metrics (LFS 2025, Module A)
-    vup                district_vup_metrics (VUP 2025, Module B)
+    labour             district_lfs_metrics (LFS 2025)
+    vup                district_vup_metrics (VUP 2025)
     food_security      district_cfsva_metrics (CFSVA 2024)
     living_standards   district_rdhs_metrics (RDHS 2025)
     verdicts + targets policy engine (10-rule rulebook, ministerial edits live)

@@ -1,4 +1,4 @@
-"""Matchmaker scoring engine (Module C) — explainable rule-based fit.
+"""Matchmaker scoring engine — explainable rule-based fit.
 
 Given a citizen profile and the district's calibrated statistics, scores the
 product catalog and returns EVERY recommendation with human-readable reasons
