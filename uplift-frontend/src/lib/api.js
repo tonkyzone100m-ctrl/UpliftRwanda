@@ -49,7 +49,8 @@ const rowsOf = (payload) => (payload?.status === "success" && Array.isArray(payl
 
 const isRowFeed = (p) => p?.status === "success" && Array.isArray(p.data);
 
-function expect(payload, check, engine) {
+async function expect(req, check, engine) {
+  const payload = await req;
   if (!check(payload)) throw new ApiError(`The ${engine} returned an unexpected response shape.`);
   return payload;
 }
