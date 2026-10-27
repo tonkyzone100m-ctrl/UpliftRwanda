@@ -27,6 +27,8 @@ Judge access to the Ministerial Portal (conveniently, not a public credential):
 | Username | `nisr_admin` |
 | Password | `nisr-admin-2026` |
 
+Demo Video Walkthrough: [View Demo Video in Repository](./demo/uplift-rwanda-demo.
+
 
 The backend honours the same credentials via `UPLIFT_ADMIN_USERNAME` / `UPLIFT_ADMIN_PASSWORD` environment variables; a self-hosted instance must set them itself and rotate this hackathon password for anything production-facing.
 
