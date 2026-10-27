@@ -1,6 +1,7 @@
 import { MapPin, RefreshCw, RotateCcw, Search, SlidersHorizontal, Table, X } from "lucide-react";
 import { categoryLabels, categoryOptions, hasActiveFilters } from "../lib/filters";
 import { categoryStyle } from "../lib/categories";
+import { useLanguage } from "../lib/i18n";
 
 const CONTROL_CLASSES =
   "h-10 w-full appearance-none rounded-lg border border-slate-300 bg-white text-sm text-slate-900 shadow-sm transition focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/15 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400";
@@ -27,9 +28,10 @@ function FieldLabel({ htmlFor, children }) {
 }
 
 function SearchField({ query, onQueryChange }) {
+  const { t } = useLanguage();
   return (
     <div className="sm:col-span-2 lg:col-span-5">
-      <FieldLabel htmlFor="metric-search">Search indicators · districts · provinces</FieldLabel>
+      <FieldLabel htmlFor="metric-search">{t("filters.searchLabel")}</FieldLabel>
       <div className="relative">
         <Search
           className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
@@ -39,7 +41,7 @@ function SearchField({ query, onQueryChange }) {
           id="metric-search"
           type="search"
           autoComplete="off"
-          placeholder="e.g. mobile money, poverty, Kigali…"
+          placeholder={t("filters.searchPlaceholder")}
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
           className={`${CONTROL_CLASSES} pl-9 pr-9`}
@@ -48,7 +50,7 @@ function SearchField({ query, onQueryChange }) {
           <button
             type="button"
             onClick={() => onQueryChange("")}
-            aria-label="Clear search"
+            aria-label={t("filters.clearSearch")}
             className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
           >
             <X className="h-4 w-4" aria-hidden="true" />
@@ -60,6 +62,7 @@ function SearchField({ query, onQueryChange }) {
 }
 
 function DistrictField({ regions, value, onChange, disabled }) {
+  const { t } = useLanguage();
   const byProvince = new Map();
   for (const r of regions) {
     if (!byProvince.has(r.province)) byProvince.set(r.province, []);
@@ -67,7 +70,7 @@ function DistrictField({ regions, value, onChange, disabled }) {
   }
   return (
     <div className="sm:col-span-1 lg:col-span-3">
-      <FieldLabel htmlFor="district-select">District</FieldLabel>
+      <FieldLabel htmlFor="district-select">{t("filters.district")}</FieldLabel>
       <div className="relative">
         <MapPin
           className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
@@ -80,7 +83,7 @@ function DistrictField({ regions, value, onChange, disabled }) {
           onChange={(e) => onChange(e.target.value)}
           className={`${CONTROL_CLASSES} pl-9 pr-8 font-medium`}
         >
-          <option value="">All districts</option>
+          <option value="">{t("filters.allDistricts")}</option>
           {[...byProvince.entries()].map(([province, districts]) => (
             <optgroup key={province} label={province}>
               {districts.map((d) => (
@@ -98,9 +101,10 @@ function DistrictField({ regions, value, onChange, disabled }) {
 }
 
 function CategoryField({ options, labels, value, onChange, disabled, totalCount }) {
+  const { t } = useLanguage();
   return (
     <div className="sm:col-span-1 lg:col-span-4">
-      <FieldLabel htmlFor="category-select">Data category</FieldLabel>
+      <FieldLabel htmlFor="category-select">{t("filters.category")}</FieldLabel>
       <div className="relative">
         <SlidersHorizontal
           className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
@@ -113,7 +117,7 @@ function CategoryField({ options, labels, value, onChange, disabled, totalCount 
           onChange={(e) => onChange(e.target.value)}
           className={`${CONTROL_CLASSES} pl-9 pr-8 font-medium`}
         >
-          <option value="all">All categories · {totalCount} data points</option>
+          <option value="all">{t("filters.allCategories", { count: totalCount.toLocaleString() })}</option>
           {options.map(([id, count]) => (
             <option key={id} value={id}>
               {labels.get(id) ?? id.replace(/-/g, " ")} · {count}
@@ -127,6 +131,7 @@ function CategoryField({ options, labels, value, onChange, disabled, totalCount 
 }
 
 function FilterChip({ label, dotClass, onRemove }) {
+  const { t } = useLanguage();
   return (
     <span className="inline-flex max-w-48 items-center gap-1.5 rounded-full border border-slate-200 bg-white py-0.5 pl-2 pr-1 text-[11px] font-semibold text-slate-600 shadow-sm">
       <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotClass}`} />
@@ -134,7 +139,7 @@ function FilterChip({ label, dotClass, onRemove }) {
       <button
         type="button"
         onClick={onRemove}
-        aria-label={`Remove filter: ${label}`}
+        aria-label={t("filters.removeFilter", { label })}
         className="my-0.5 ml-0.5 rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
       >
         <X className="h-3 w-3" aria-hidden="true" />
@@ -153,6 +158,7 @@ export default function Filters({
   updatedAt,
   onRefresh,
 }) {
+  const { t } = useLanguage();
   const options = categoryOptions(displayRows);
   const labels = categoryLabels(displayRows);
   const hasActive = hasActiveFilters(filters);
@@ -180,7 +186,7 @@ export default function Filters({
 
   return (
     <section
-      aria-label="Filters and search"
+      aria-label={t("filters.aria")}
       className="rounded-2xl border border-slate-200 bg-white shadow-sm"
     >
       <div className="grid grid-cols-1 gap-3 px-5 py-4 sm:grid-cols-2 lg:grid-cols-12 lg:items-end">
@@ -205,9 +211,13 @@ export default function Filters({
         <p className="flex items-center gap-1.5 text-[11px] text-slate-600">
           <Table className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true" />
           <span>
-            <span className="font-bold text-slate-700">{matchCount.toLocaleString()}</span> of{" "}
-            <span className="font-bold text-slate-700">{totalCount.toLocaleString()}</span> data points
-            {filters.district ? ` in ${filters.district}` : " across all districts"} · synced {time}
+            <span className="font-bold text-slate-700">{matchCount.toLocaleString()}</span> {t("filters.of")}{" "}
+            <span className="font-bold text-slate-700">{totalCount.toLocaleString()}</span> {t("filters.dataPoints")}
+            {filters.district
+              ? ` ${t("filters.scopeDistrict", { district: filters.district })}`
+              : ` ${t("filters.scopeAll")}`}
+            {" · "}
+            {t("filters.syncedAt", { time })}
           </span>
         </p>
 
@@ -227,7 +237,7 @@ export default function Filters({
               className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[11px] font-bold text-emerald-700 transition hover:bg-emerald-50"
             >
               <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-              Reset
+              {t("filters.reset")}
             </button>
           )}
           <button
@@ -236,7 +246,7 @@ export default function Filters({
             className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-800"
           >
             <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-            Refresh
+            {t("filters.refresh")}
           </button>
         </div>
       </div>

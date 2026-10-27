@@ -29,6 +29,7 @@ import {
 import { toDisplayRows, filterDisplayRows, hasActiveFilters } from "./lib/filters";
 import { buildRegions, computeNationalStats } from "./lib/stats";
 import { getSession } from "./lib/auth";
+import { useLanguage } from "./lib/i18n";
 
 function syncPortalSession() {
   const session = getSession();
@@ -76,6 +77,7 @@ function PanelSkeleton({ className, label }) {
 }
 
 export default function App() {
+  const { t } = useLanguage();
   const [status, setStatus] = useState("loading");
   const [rows, setRows] = useState([]);
   const [cfsvaRows, setCfsvaRows] = useState([]);
@@ -95,13 +97,13 @@ export default function App() {
   const [portalEpoch, setPortalEpoch] = useState(0);
   const [portalSession, setPortalSession] = useState(syncPortalSession);
   const [targetsVersion, setTargetsVersion] = useState(0);
-  const [activeTab, setActiveTab] = useState(() => TAB_BY_HASH[window.location.hash] ?? "dashboard");
+  const [activeTab, setActiveTab] = useState(() => TAB_BY_HASH[window.location.hash] ?? "explorer");
 
-  // Hash-synced SPA tabs (no reloads; deep links like #lab / #rdhs / #explorer work).
+  // Hash-synced SPA tabs (no reloads; deep links like #lab / #dashboard / #rdhs work).
   const changeTab = (id) => {
     setActiveTab(id);
     if (id === "rdhs") setRdhsMounted(true);
-    history.replaceState(null, "", id === "dashboard" ? location.pathname + location.search : `#${id}`);
+    history.replaceState(null, "", id === "explorer" ? location.pathname + location.search : `#${id}`);
   };
 
   const toggleDistrict = (name) =>
@@ -156,9 +158,7 @@ export default function App() {
     if (data) setFinanceRows(data);
   }, []);
 
-  // Optional data layers resolve to null on failure, so panels fall back to their
-  // "not seeded yet" state instead of crashing the dashboard. Only the core
-  // metrics layer drives `status`.
+  // Optional layers resolve to null on failure; only the core metrics layer drives `status`.
   useEffect(() => {
     const controller = new AbortController();
     const quiet = (fn) =>
@@ -240,24 +240,24 @@ export default function App() {
               className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white p-16 text-center shadow-sm"
             >
               <FileSearch2 className="h-10 w-10 text-slate-300" aria-hidden="true" />
-              <h2 className="text-base font-bold text-slate-800">No usable district data was returned</h2>
+              <h2 className="text-base font-bold text-slate-800">{t("app.noDataTitle")}</h2>
               <p className="max-w-md text-sm text-slate-500">
-                The API responded, but the dataset contained no district rows. Ministers can regenerate it from the{" "}
+                {t("app.noDataBody")}{" "}
                 <button
                   type="button"
                   onClick={() => setPortalOpen(true)}
                   className="font-semibold text-emerald-700 underline decoration-emerald-600/40 underline-offset-2 hover:text-emerald-800"
                 >
-                  Ministerial Portal
+                  {t("portal.button")}
                 </button>
-                , then refresh.
+                {t("app.noDataTail")}
               </p>
               <button
                 type="button"
                 onClick={() => fetchData()}
                 className="mt-1 inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800"
               >
-                <RefreshCw className="h-4 w-4" aria-hidden="true" /> Reload dataset
+                <RefreshCw className="h-4 w-4" aria-hidden="true" /> {t("app.reloadDataset")}
               </button>
             </div>
           ) : (
@@ -276,7 +276,7 @@ export default function App() {
         regionCount={regions.length}
         stats={stats}
         dataPoints={allRows.length}
-        tabs={TABS}
+        tabs={TABS.map(({ id }) => ({ id, label: t(`tab.${id}`) }))}
         activeTab={activeTab}
         onTabChange={changeTab}
         {...portalProps}
@@ -376,7 +376,7 @@ export default function App() {
             hasFilters={hasFilters}
             emptyHint={
               displayRows.length > 0 && filteredRows.length === 0
-                ? "No rows match your current filters — try a broader search term or reset the filters."
+                ? t("metrics.emptyHint")
                 : null
             }
           />

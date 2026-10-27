@@ -1,11 +1,11 @@
 import { resolveRegionMetric } from "./stats";
 
 /**
- * Offline mirror of the backend policy engine (policy.py).
- * Fires ONLY when the FastAPI engine is unreachable; ids/severities match the
- * backend so the UI renders the same insight cards either way.
+ * Offline mirror of the backend policy engine (policy.py), used only when the
+ * FastAPI engine is unreachable; ids/severities match the backend so the UI
+ * renders the same insight cards either way.
  *
- * Backend thresholds (FinScope 2024 / EICV7 calibrated):
+ * Thresholds (FinScope 2024 / EICV7 calibrated):
  *   vulnerability share > 30% (critical > 37%)   mobile money < 75% (critical < 65%)
  *   poverty > 30%                                 climate exposure > 69% (critical > 80%)
  *   inclusion < 95 (critical < 90)                savings < 55 (critical < 45)

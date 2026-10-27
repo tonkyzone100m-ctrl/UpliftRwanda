@@ -1,8 +1,4 @@
-/**
- * Minimal dependency-free chart renderer used by the Scenario Lab.
- * Renders grouped columns (Baseline + one bar per projection year) for several
- * outcomes on an inline SVG with delta badges — small enough for field tablets.
- */
+/** Dependency-free SVG chart for the Scenario Lab: grouped columns with delta badges. */
 
 function niceCeil(v) {
   if (!Number.isFinite(v)) return 10;

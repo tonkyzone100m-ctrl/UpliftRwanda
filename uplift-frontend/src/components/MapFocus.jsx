@@ -2,15 +2,10 @@ import { useCallback, useEffect, useRef } from "react";
 import { useMap } from "react-leaflet";
 
 /**
- * Viewport controller shared by every district map in the app. Focusing a
- * district frames its bounds (capped zoom), clearing it refits the national
- * envelope, and the initial mount keeps whatever center/zoom the MapContainer
- * was configured with.
- *
- * The maps render inside collapsible tabs. Leaflet computes NaN centers when it
- * fits bounds in a zero-sized container, so view requests made while hidden are
- * parked on pendingRef and re-applied — after invalidateSize — once the
- * container is measurable again.
+ * Viewport controller for the district maps: focusing a district frames its
+ * bounds, clearing it refits the national envelope. Leaflet computes NaN
+ * centers in zero-sized containers, so view requests made while the tab is
+ * hidden park on pendingRef and re-apply after invalidateSize.
  */
 export default function MapFocus({
   selectedDistrict = "",

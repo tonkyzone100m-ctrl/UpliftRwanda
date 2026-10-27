@@ -1,5 +1,6 @@
-import { ChevronDown, Hexagon, MapPinned, ScanSearch } from "lucide-react";
+import { ChevronDown, Hexagon, Languages, MapPinned, ScanSearch } from "lucide-react";
 import { PortalButton } from "./MinisterialPortal";
+import { useLanguage } from "../lib/i18n";
 
 function UpliftLogoNISR() {
   return (
@@ -32,6 +33,42 @@ function formatCount(value) {
   return value.toLocaleString("en-US");
 }
 
+/** EN/RW switch; choice persists in localStorage. */
+function LanguageToggle() {
+  const { lang, setLang, t } = useLanguage();
+  return (
+    <div
+      role="group"
+      aria-label={t("lang.toggleAria")}
+      className="flex items-center gap-0.5 rounded-xl bg-white/10 p-0.5 shadow-sm ring-1 ring-inset ring-white/20"
+    >
+      <Languages className="ml-1.5 h-3.5 w-3.5 text-slate-300" aria-hidden="true" />
+      {[
+        { code: "en", label: "EN" },
+        { code: "rw", label: "RW" },
+      ].map(({ code, label }) => {
+        const active = lang === code;
+        return (
+          <button
+            key={code}
+            type="button"
+            aria-pressed={active}
+            title={code === "en" ? "English" : "Kinyarwanda"}
+            onClick={() => setLang(code)}
+            className={`rounded-lg px-2.5 py-1.5 text-[11px] font-bold transition ${
+              active
+                ? "bg-slate-100 text-slate-900 shadow"
+                : "text-slate-300 hover:bg-white/10 hover:text-white"
+            }`}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function HeroStat({ icon: Icon, label, value, loading, support, supportAccent = false, accent }) {
   return (
     <div className={`relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.05] p-4 ${accent ? `border-l-4 ${accent}` : ""}`}>
@@ -49,10 +86,11 @@ function HeroStat({ icon: Icon, label, value, loading, support, supportAccent = 
 }
 
 function TabSwitcher({ tabs, activeTab, onChange, className = "" }) {
+  const { t } = useLanguage();
   return (
     <div
       role="tablist"
-      aria-label="Dashboard views"
+      aria-label={t("header.dashboardViews")}
       className={`scrollbar-none hidden flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap rounded-xl border border-white/10 bg-white/[0.06] p-1 sm:flex ${className}`}
     >
       {tabs.map((tab) => {
@@ -80,10 +118,11 @@ function TabSwitcher({ tabs, activeTab, onChange, className = "" }) {
 
 /** Mobile-only collapsible navigation: a native dropdown that can never clip or overflow. */
 function TabSelect({ tabs, activeTab, onChange, className = "" }) {
+  const { t } = useLanguage();
   return (
     <div className={className}>
       <label htmlFor="mobile-tab-select" className="sr-only">
-        Dashboard views
+        {t("header.dashboardViews")}
       </label>
       <div className="relative flex w-full items-center">
         <select
@@ -105,6 +144,7 @@ function TabSelect({ tabs, activeTab, onChange, className = "" }) {
 }
 
 export default function Header({ regionCount, stats, dataPoints = 0, tabs, activeTab, onTabChange, onOpenPortal, portalSession }) {
+  const { t } = useLanguage();
   const yearLabel = stats?.years?.length
     ? stats.years.length > 3 ? `${stats.years[0]}–${stats.years[stats.years.length - 1]}` : stats.years.join(" · ")
     : null;
@@ -121,10 +161,10 @@ export default function Header({ regionCount, stats, dataPoints = 0, tabs, activ
             <UpliftLogoNISR />
             <span
               className="ml-1 hidden items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-200 md:inline-flex"
-              title="API responding · dataset loaded from the live database"
+              title={t("header.liveTitle")}
             >
               <span aria-hidden="true" className="h-1.5 w-1.5 animate-pulse-soft rounded-full bg-emerald-400" />
-              Live · Open Data
+              {t("header.live")}
             </span>
           </div>
 
@@ -148,6 +188,7 @@ export default function Header({ regionCount, stats, dataPoints = 0, tabs, activ
           )}
 
           <div className={`flex shrink-0 items-center gap-3 ${tabs ? "order-2 sm:order-3" : ""}`}>
+            <LanguageToggle />
             <PortalButton onOpen={onOpenPortal} session={portalSession} />
           </div>
         </nav>
@@ -174,36 +215,35 @@ export default function Header({ regionCount, stats, dataPoints = 0, tabs, activ
                 </h1>
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1.5 text-[11px] font-semibold text-emerald-200">
                   <span aria-hidden="true" className="h-1.5 w-1.5 animate-pulse-soft rounded-full bg-emerald-400" />
-                  Public Data · No sign-in required
+                  {t("header.heroBadge")}
                 </span>
               </div>
                 <p className="mt-2 max-w-2xl text-sm text-slate-300 sm:text-base">
-                  District-level evidence on financial inclusion, food security, labour, VUP and living
-                  standards — one dashboard, zero sign-in.
+                  {t("header.heroDescription")}
                 </p>
             </div>
 
             <dl className="grid w-full gap-3 sm:w-auto sm:grid-cols-3">
               <HeroStat
                 icon={ScanSearch}
-                label="Data points"
+                label={t("header.dataPoints")}
                 value={dataPoints > 0 ? formatCount(dataPoints) : null}
                 loading={dataPoints === 0}
-                support={dataPoints > 0 ? "live from the database" : "loading"}
+                support={dataPoints > 0 ? t("header.liveFromDb") : t("header.loading")}
                 supportAccent={dataPoints > 0}
                 accent="border-l-sky-400"
               />
               <HeroStat
                 icon={MapPinned}
-                label="Districts"
+                label={t("header.districts")}
                 value={regionCount > 0 ? formatCount(regionCount) : null}
                 loading={regionCount === 0}
-                support={regionCount > 0 ? "all of Rwanda mapped" : "loading"}
+                support={regionCount > 0 ? t("header.allMapped") : t("header.loading")}
                 accent="border-l-emerald-400"
               />
               <HeroStat
                 icon={Hexagon}
-                label="Survey vintage"
+                label={t("header.surveyVintage")}
                 value={yearLabel ?? null}
                 loading={!yearLabel}
                 support="FinScope · EICV7 · CFSVA · LFS"

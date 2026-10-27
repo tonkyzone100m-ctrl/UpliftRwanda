@@ -6,6 +6,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { extremeMetricEntry } from "../lib/stats";
+import { useLanguage } from "../lib/i18n";
 
 function Card({ accent, icon: Icon, label, value, sub }) {
   return (
@@ -24,52 +25,54 @@ function Card({ accent, icon: Icon, label, value, sub }) {
 }
 
 export default function SummaryCards({ stats }) {
+  const { t } = useLanguage();
   const poverty = stats?.perMetric?.povertyRate;
   const inclusion = stats?.perMetric?.financialInclusion;
   const social = stats?.perMetric?.socialProtection;
   const bestInclusion = extremeMetricEntry(stats, "financialInclusion", "good");
   const worstPoverty = extremeMetricEntry(stats, "povertyRate", "bad");
+  const nationalMean = t("cards.nationalMean");
 
   const cards = [
     {
       id: "inclusion",
       icon: Wallet,
       accent: { bar: "bg-sky-500", chip: "bg-sky-50", iconText: "text-sky-600" },
-      label: "Avg · Financial Inclusion",
+      label: t("cards.inclusionLabel"),
       value: inclusion ? `${inclusion.mean.toFixed(1)}%` : "—",
-      sub: `National mean across districts · NST2 benchmark ≥ 80%`,
+      sub: t("cards.inclusionSub", { mean: nationalMean }),
     },
     {
       id: "poverty",
       icon: Frown,
       accent: { bar: "bg-amber-400", chip: "bg-amber-50", iconText: "text-amber-600" },
-      label: "Avg · Poverty Headcount",
+      label: t("cards.povertyLabel"),
       value: poverty ? `${poverty.mean.toFixed(1)}%` : "—",
-      sub: `National mean across districts · guardrail < 30%`,
+      sub: t("cards.povertySub", { mean: nationalMean }),
     },
     {
       id: "social",
       icon: Landmark,
       accent: { bar: "bg-violet-500", chip: "bg-violet-50", iconText: "text-violet-600" },
-      label: "Avg · Social Protection",
+      label: t("cards.socialLabel"),
       value: social ? `${social.mean.toFixed(1)}%` : "—",
-      sub: `National mean across districts · target ≥ 60%`,
+      sub: t("cards.socialSub", { mean: nationalMean }),
     },
     {
       id: "best-inclusion",
       icon: Trophy,
       accent: { bar: "bg-emerald-500", chip: "bg-emerald-50", iconText: "text-emerald-600" },
-      label: "Top Inclusion District",
+      label: t("cards.topInclusion"),
       value: bestInclusion?.formatted ?? "—",
-      sub: bestInclusion ? `${bestInclusion.entry.district} · ${bestInclusion.entry.province}` : "No inclusion data yet",
+      sub: bestInclusion ? `${bestInclusion.entry.district} · ${bestInclusion.entry.province}` : t("cards.noInclusion"),
     },
     {
       id: "worst-poverty",
       icon: AlertTriangle,
       accent: { bar: "bg-rose-500", chip: "bg-rose-50", iconText: "text-rose-600" },
-      label: "Highest Poverty",
+      label: t("cards.highestPoverty"),
       value: worstPoverty?.formatted ?? "—",
-      sub: worstPoverty ? `${worstPoverty.entry.district} · ${worstPoverty.entry.province}` : "No poverty data yet",
+      sub: worstPoverty ? `${worstPoverty.entry.district} · ${worstPoverty.entry.province}` : t("cards.noPoverty"),
     },
   ];
 

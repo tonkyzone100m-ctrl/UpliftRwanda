@@ -34,7 +34,7 @@ seed_data.seed(engine, drop_existing=True)
 
 client = TestClient(main.app)
 
-# --- 1. seed + table creation (additive only) ---------------------------------
+# seed + table creation
 seed_vup.seed_vup(engine)
 check("vup layer seeds cleanly", True)
 

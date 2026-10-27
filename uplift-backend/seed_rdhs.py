@@ -65,14 +65,10 @@ METRIC_COLUMNS = [
 def load_panel(path: Path | None = None) -> dict:
     panel_path = path or DEFAULT_PANEL
     if not panel_path.exists():
-        alt = Path("/home/it-eng/Downloads/Microdata/Microdata") / panel_path.name
-        if alt.exists():
-            panel_path = alt
-        else:
-            raise FileNotFoundError(
-                f"RDHS panel not found at {panel_path}. Generate it with: "
-                "python3 preprocess_rdhs.py (needs RWHR91FL.dta + RWBR91FL.dta)"
-            )
+        raise FileNotFoundError(
+            f"RDHS panel not found at {panel_path}. Generate it with: "
+            "python3 preprocess_rdhs.py (needs RWHR91FL.dta + RWBR91FL.dta)"
+        )
     payload = json.loads(panel_path.read_text(encoding="utf-8"))
     rows = payload.get("districts")
     if not isinstance(rows, list) or len(rows) != 30:

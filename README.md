@@ -55,6 +55,17 @@ judge and the evidence. Write access (reseed, baseline-target changes, survey
 uploads) sits behind bcrypt credentials and short-lived HS256 tokens issued
 by the Ministerial Portal in the header.
 
+Judge access to the Ministerial Portal (conveniently, not a public credential):
+
+| Field    | Value              |
+| -------- | ------------------ |
+| Username | `nisr_admin`       |
+| Password | `nisr-admin-2026`  |
+
+The backend honours the same credentials via `UPLIFT_ADMIN_USERNAME` /
+`UPLIFT_ADMIN_PASSWORD` environment variables; a self-hosted instance must set
+them itself and rotate this hackathon password for anything production-facing.
+
 - 870 observations: FinScope 2024 (transactional accounts 77%, mobile money 77%,
   formal inclusion 92%, formal credit 24%, formal savings 59%), EICV7 2023/24
   (poverty 27.4%, extreme poverty 4.5%, social-protection reach 61.3%),

@@ -1,10 +1,7 @@
 /**
- * Client-side parsing for ministerial microdata uploads.
- *
- * The API is JSON-only by contract; it takes structured JSON rows:
- *   POST /api/admin/microdata  { rows: [{ district, indicator_code, survey_year, value }] }
- * so the browser does the CSV parsing and cheap pre-validation, keeping the
- * server contract small and the per-row error report consistent.
+ * Client-side CSV parsing for ministerial microdata uploads.
+ * The API is JSON-only (POST /api/admin/microdata { rows }), so the browser
+ * does the parsing and pre-validation, keeping per-row error reports consistent.
  */
 
 export const UPLOAD_ROW_LIMIT = 5000;

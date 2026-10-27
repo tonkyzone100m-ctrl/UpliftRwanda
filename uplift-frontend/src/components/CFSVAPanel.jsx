@@ -10,10 +10,7 @@ const CFSVA_TILES = [
   { key: "stunting", label: "Child Stunting (% under-5)", icon: HeartPulse },
 ];
 
-/**
- * Modular CFSVA 2024 strip. Renders NOTHING until the dedicated Food Security
- * layer is seeded — the existing FinScope/EICV dashboard stays untouched.
- */
+/** CFSVA 2024 strip; renders nothing until the food-security layer is seeded. */
 export default function CFSVAPanel({ rows = [], stats = null }) {
   const tiles = useMemo(
     () =>

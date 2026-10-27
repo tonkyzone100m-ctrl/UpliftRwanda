@@ -15,8 +15,10 @@ import {
 import { ApiError, fetchTargets } from "../lib/api";
 import { parseMicrodataCsv } from "../lib/microdata";
 import { clearSession, getSession, getToken, loginAdmin, postAdminAction, storeSession } from "../lib/auth";
+import { useLanguage } from "../lib/i18n";
 
 export function PortalButton({ onOpen, session }) {
+  const { t } = useLanguage();
   const active = Boolean(session);
   return (
     <button
@@ -28,10 +30,10 @@ export function PortalButton({ onOpen, session }) {
           ? "bg-emerald-500/15 text-emerald-200 ring-emerald-400/40 hover:bg-emerald-500/25"
           : "bg-white/10 text-white ring-white/20 hover:bg-white/15"
       }`}
-      title={active ? `Ministerial session · ${session.username}` : "Sign in to the ministerial console"}
+      title={active ? `${t("portal.session")} · ${session.username}` : t("portal.sessionTitle")}
     >
       {active ? <ShieldCheck className="h-4 w-4" aria-hidden="true" /> : <LockKeyhole className="h-4 w-4" aria-hidden="true" />}
-      {active ? "Ministerial session" : "Ministerial Portal"}
+      {active ? t("portal.session") : t("portal.button")}
     </button>
   );
 }

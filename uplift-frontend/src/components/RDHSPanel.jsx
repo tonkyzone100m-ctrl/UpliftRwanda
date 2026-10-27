@@ -73,11 +73,7 @@ function pearson(pairs) {
 
 const pct = (v, unit = "%") => (v == null ? "—" : `${v.toFixed(1)}${unit === "%" ? "%" : " ‰"}`);
 
-/**
- * RDHS 2025 living standards & poverty dynamics — third data layer, additive
- * only. Renders an actionable empty state until the layer is seeded
- * (python3 seed_rdhs.py); the FinScope/EICV7 + CFSVA dashboards never block.
- */
+/** RDHS 2025 living-standards layer; shows an actionable empty state until seed_rdhs.py runs. */
 export default function RDHSPanel({
   rows = [],
   selectedDistrict = "",

@@ -3,12 +3,7 @@ import { FileDown, FileSpreadsheet, Printer } from "lucide-react";
 import SectionCard from "./Card";
 import { downloadBrief } from "../lib/api";
 
-/**
- * Executive Policy Brief — one-click PDF/CSV downloads straight
- * from the FastAPI brief endpoints for any district or the national view.
- * Fetches as a blob so backend JSON errors (400/404/503) surface inline
- * instead of a silent dead navigation.
- */
+/** One-click PDF/CSV brief downloads; blob fetch surfaces backend JSON errors inline. */
 export default function BriefCard({ districts = [], selectedDistrict = "" }) {
   const [ref, setRef] = useState(selectedDistrict || "national");
   const [busy, setBusy] = useState(false);
