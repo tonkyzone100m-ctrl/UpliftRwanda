@@ -131,7 +131,7 @@ venv/bin/python seed_rdhs.py --url $DATABASE_URL
 
 ## Deploying to Vercel
 
-Live Application:\[https://uplift-frontend-ruby.vercel.app\](https://uplift-frontend-ruby.vercel.app)
+Live Application:https://uplift-frontend-ruby.vercel.app
 
 - Frontend: `uplift-frontend` is a standard Vite app — import the repo in Vercel, set **Root Directory** to `uplift-frontend`, build `npm run build`, output `dist`, and set `VITE_API_BASE_URL` to the public API base URL (the legacy `VITE_API_URL` name is also honoured as a fallback; see `uplift-frontend/.env.example`). SPA deep-links use hash routing (`#rdhs`), so no rewrite rules are needed.
 
